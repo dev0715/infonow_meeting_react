@@ -1,4 +1,4 @@
-const IOEvents = {
+export const IOEvents = {
     CONNECT: "CONNECT",
     DISCONNECT: "disconnect",
     SET_LANGUAGE: "SET_LANGUAGE",
@@ -24,9 +24,4 @@ const IOEvents = {
     UNMUTE_AUDIO: "UNMUTE_AUDIO",
     SCREEN_SHARING: "SCREEN_SHARING",
     VIDEO_SHARING: "VIDEO_SHARING"
-
 };
-
-module.exports = {
-    IOEvents
-}

@@ -95,7 +95,11 @@ body {
 	background: #df1616;
 }
 
-#hidelocalViewBtn {
+#videos:hover.active #btn-video-call-container {
+	display: initial;
+}
+
+#hideLocalVideoBtn {
 	position: absolute;
 	z-index: 1000;
 	top: 20px;
@@ -110,11 +114,11 @@ body {
 	width: 30px;
 }
 
-#hidelocalViewBtn:hover {
+#hideLocalVideoBtn:hover {
 	opacity: 1;
 }
 
-#hidelocalViewBtn:focus {
+#hideLocalVideoBtn:focus {
 	outline: none;
 }
 
@@ -150,7 +154,7 @@ body {
 	width: 100%;
 }
 
-.user-indicators-icon {
+.indicator-container span {
 	width: 80px;
 	height: 25px;
 	background-color: rgb(83, 82, 82);
@@ -162,7 +166,7 @@ body {
 	opacity: 0.5;
 }
 
-.user-indicators-icon:hover {
+.indicator-container span:hover {
 	opacity: 1;
 }
 
@@ -257,7 +261,7 @@ label {
 		box-shadow: 1px 1px 8px #000;
 	}
 
-	#hidelocalViewBtn {
+	#hideLocalVideoBtn {
 		top: 25px;
 		right: 45px;
 	}
@@ -280,7 +284,7 @@ label {
 		box-shadow: 1px 1px 8px #000;
 	}
 
-	#hidelocalViewBtn {
+	#hideLocalVideoBtn {
 		top: 20px;
 		right: 20px;
 	}
@@ -303,7 +307,7 @@ label {
 		box-shadow: 1px 1px 8px #000;
 	}
 
-	#hidelocalViewBtn {
+	#hideLocalVideoBtn {
 		position: absolute;
 		z-index: 1000;
 		top: 20px;

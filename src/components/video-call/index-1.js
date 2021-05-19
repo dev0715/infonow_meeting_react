@@ -5,7 +5,6 @@ import { Row, Col } from 'reactstrap'
 import './style.css';
 import { IOEvents } from "./events"
 import { servers, videoSharingConfig, screenSharingConfig } from './config';
-import { useParams } from 'react-router';
 
 
 export const VideoCall = () => {
@@ -14,7 +13,6 @@ export const VideoCall = () => {
     const [videoIcon, setVideoIcon] = useState("la la-video");
     const [screenIcon, setScreenIcon] = useState("las la-desktop");
 
-    const { token, meetingId, lang } = useParams();
 
     let videoContainer = null;
 
@@ -27,13 +25,17 @@ export const VideoCall = () => {
     let muteVideoBtn = null;
     let hideLocalVideoBtn = null;
     let showLocalVideoBtn = null;
+
     let screenShareBtn = null;
+
     let userAudioMuteIndicator = null;
     let userVideoMuteIndicator = null;
     let userScreenSharingMuteIndicator = null;
 
     let callBtnContainer = null;
 
+    let callInput = null;
+    let userInput = null;
 
     // Global State
     var pc = null;
@@ -46,35 +48,38 @@ export const VideoCall = () => {
     let isJoined = false;
     let isScreenShared = false;
 
+    var meetingId = "3aad1303-cda3-431b-a171-5e3ddc14af3d"
+    var userId = "af59250f-d07a-423c-ba44-35a6143a18eb";
+
     var socket;
 
 
     function init() {
-        socket = io('http://192.168.10.104:3601', { transports: ['websocket', 'polling', 'flashsocket'] });
+        socket = io('http://192.168.10.101:3601', { transports: ['websocket', 'polling', 'flashsocket'] });
 
 
         socket.on(IOEvents.CONNECT, function () {
-            socket.emit(IOEvents.SET_LANGUAGE, {
-                locale: lang ?? "en"
-            })
             console.log(IOEvents.CONNECT)
-            socket.emit(IOEvents.AUTHORIZATION, { authorization: decodeURIComponent(token) })
+            socket.emit(IOEvents.AUTHORIZATION)
+        });
+
+        socket.on(IOEvents.SET_LANGUAGE, function () {
+            console.log(IOEvents.SET_LANGUAGE)
+            socket.emit(IOEvents.SET_LANGUAGE, {
+                locale: "en"
+            })
+
         });
 
         socket.on(IOEvents.END_CALL, function () {
             console.log(IOEvents.END_CALL)
             hangupButton.click()
+
         });
 
-        socket.on(IOEvents.AUTHORIZATION, function (res) {
-            console.log(IOEvents.AUTHORIZATION, res)
+        socket.on(IOEvents.AUTHORIZATION, function () {
+            console.log(IOEvents.AUTHORIZATION)
             //------------static for testing ----------//
-            if (!res.success) {
-                joinBtn.disabled = true
-                toast("You are not authorized")
-            } else {
-                joinBtn.disabled = false
-            }
 
         });
 
@@ -170,7 +175,7 @@ export const VideoCall = () => {
                     sdp: answerDescription.sdp,
                 }
             });
-            candidates = []
+
             setupIceEventBeforeStartCall()
 
         });
@@ -224,11 +229,13 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.MUTE_AUDIO, function () {
             console.log(IOEvents.MUTE_AUDIO)
+
             userAudioMuteIndicator.style.display = "initial";
         });
 
         socket.on(IOEvents.UNMUTE_AUDIO, function () {
             console.log(IOEvents.UNMUTE_AUDIO)
+
             userAudioMuteIndicator.style.display = "none";
         });
 
@@ -237,6 +244,7 @@ export const VideoCall = () => {
             webcamVideo.classList.remove("active");
             remoteVideo.classList.remove("active");
             userVideoMuteIndicator.style.display = "initial";
+
             hideLocalVideoBtn.style.display = "none";
             webcamVideo.style.display = "initial";
             showLocalVideoBtn.style.display = "none";
@@ -245,20 +253,27 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.UNMUTE_VIDEO, function () {
             console.log(IOEvents.UNMUTE_VIDEO)
+
             webcamVideo.classList.add("active");
             remoteVideo.classList.add("active");
             userVideoMuteIndicator.style.display = "none";
+
             hideLocalVideoBtn.style.display = "initial";
+
         });
 
         socket.on(IOEvents.SCREEN_SHARING, function () {
             console.log(IOEvents.SCREEN_SHARING)
+
             userScreenSharingMuteIndicator.style.display = "initial";
+
         });
 
         socket.on(IOEvents.VIDEO_SHARING, function () {
             console.log(IOEvents.VIDEO_SHARING)
+
             userScreenSharingMuteIndicator.style.display = "none";
+
         });
 
 
@@ -271,19 +286,45 @@ export const VideoCall = () => {
         hangupButton = document.getElementById('hangupButton');
         muteAudioBtn = document.getElementById('muteMic');
         muteVideoBtn = document.getElementById('muteVideo');
-        hideLocalVideoBtn = document.getElementById('hideLocalVideoBtn');
+        hideLocalVideoBtn = document.getElementById('hidelocalViewBtn');
         showLocalVideoBtn = document.getElementById('showLocalVideoBtn');
+
         screenShareBtn = document.getElementById('screenShareBtn');
+
         userAudioMuteIndicator = document.getElementById('user-audio-icon');
         userVideoMuteIndicator = document.getElementById('user-video-icon');
         userScreenSharingMuteIndicator = document.getElementById('user-screen-sharing-icon');
-        callBtnContainer = document.getElementById('btn-video-call-container');
-        joinBtn.onclick = startVideoCall;
-        hangupButton.onclick = endVideoCall
-        muteAudioBtn.onclick = toggleMicrophone
-        muteVideoBtn.onclick = toggleVideo
-        screenShareBtn.onclick = toggleScreenShare
 
+        callBtnContainer = document.getElementById('btn-video-call-container');
+
+        callInput = document.getElementById('callInput');
+        userInput = document.getElementById('userInput');
+
+        callInput.value = meetingId;
+        userInput.value = userId;
+
+        joinBtn.onclick = () => {
+
+            startVideoCall()
+
+        };
+
+        hangupButton.onclick = () => {
+
+            endVideoCall()
+        }
+
+        muteAudioBtn.onclick = () => {
+            toggleMicrophone()
+        }
+
+        muteVideoBtn.onclick = () => {
+            toggleVideo()
+        }
+
+        screenShareBtn.onclick = () => {
+            toggleScreenShare();
+        }
 
         hideLocalVideoBtn.onclick = () => {
             hideLocalVideoBtn.style.display = "none";
@@ -299,7 +340,9 @@ export const VideoCall = () => {
     }
 
     useEffect(() => {
+
         init()
+
     }, [])
 
 
@@ -462,6 +505,7 @@ export const VideoCall = () => {
             socket.emit(IOEvents.CREATE_ROOM, {
                 type: IOEvents.CREATE_ROOM,
                 meetingId: meetingId,
+                userId: userId,
                 data: {
                     sdp: offerDescription.sdp,
                     type: offerDescription.type,
@@ -565,12 +609,26 @@ export const VideoCall = () => {
 
 
     async function startVideoCall() {
+
+        meetingId = callInput.value;
+        userId = userInput.value;
+
+        if (!meetingId || !userId) {
+            toast("Please fill the form")
+            return
+        }
+
         joinBtn.disabled = true;
+
         initVideoState()
-        setTimeout(createRoom, 1000);
+
+        setTimeout(() => {
+            createRoom()
+        }, 1000);
     }
 
     function endVideoCall() {
+
         closeConnection()
         resetScreenAndButtons()
 
@@ -587,24 +645,24 @@ export const VideoCall = () => {
         <Row>
             <Col lg={12} id="videos">
                 <span id="webcamVideoContainer">
-                    <video id="webcamVideo" muted="muted" autoPlay={true} playsInline style={{ objectFit: 'contain' }}></video>
-                    <button id="hideLocalVideoBtn" style={{ display: 'none' }}>
+                    <video id="webcamVideo" muted="muted" autoPlay={true} playsinline style={{ objectFit: 'contain' }}></video>
+                    <button id="hidelocalViewBtn" style={{ display: 'none' }}>
                         <i className="la la-close"></i>
                     </button>
                 </span>
                 <span>
-                    <video id="remoteVideo" autoPlay={true} playsInline style={{ objectFit: 'contain' }}></video>
+                    <video id="remoteVideo" autoPlay={true} playsinline style={{ objectFit: 'contain' }}></video>
                 </span>
                 <div className="indicator-container">
-                    <span id="user-audio-icon" >
+                    <span id="user-audio-icon" className="user-indicators-icon">
                         <i className="la la-user"></i>
                         <i className="la la-microphone-slash "></i>
                     </span>
-                    <span id="user-video-icon" >
+                    <span id="user-video-icon" className="user-indicators-icon">
                         <i className="la la-user"></i>
                         <i className="las la-video-slash "></i>
                     </span>
-                    <span id="user-screen-sharing-icon">
+                    <span id="user-screen-sharing-icon" className="user-indicators-icon">
                         <i className="la la-user"></i>
                         <i className="las la-desktop "></i>
                     </span>
@@ -625,13 +683,24 @@ export const VideoCall = () => {
                         <i className={screenIcon}></i>
                     </button>
                     <button className="operation-btn" id="showLocalVideoBtn" style={{ display: 'none' }}>
-                        <i className="lab la-creative-commons-by"></i>
+                        <i class="lab la-creative-commons-by"></i>
                     </button>
                 </div>
 
             </Col>
             <Col className=" mt-3 mb-3 d-flex justify-content-center">
-                <div id="snackbar"></div>
+                <div className="col-sm-12 col-md-6 col-lg-4 text-center ">
+                    <div class="form-group ">
+                        <label for="callInput">Meeting ID</label>
+                        <input type="text" class="form-control" id="callInput" placeholder="Enter meeting id" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userInput">User ID</label>
+                        <input type="text" class="form-control" id="userInput" placeholder="Enter user id" />
+                    </div>
+                </div>
+                <div id="snackbar">Some message</div>
             </Col>
         </Row >);
 
