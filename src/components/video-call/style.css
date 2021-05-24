@@ -170,11 +170,12 @@ body {
 	opacity: 1;
 }
 
-label {
-	font-size: 14px;
-	color: white;
-	display: block;
-	margin-bottom: 5px;
+#board {
+	width: 100vw;
+	height: 80vh;
+	display: initial;
+	background-color: white;
+	overflow: hidden;
 }
 
 #snackbar {

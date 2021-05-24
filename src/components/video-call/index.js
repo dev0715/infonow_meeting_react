@@ -4,54 +4,60 @@ import { Row, Col } from 'reactstrap'
 
 import './style.css';
 import { IOEvents } from "./events"
-import { servers, videoSharingConfig, screenSharingConfig } from './config';
+import { servers, VideoSharingConfig, ScreenSharingConfig, IOConfig } from './config';
 import { useParams } from 'react-router';
+import { URLs } from '../urls';
 
+
+
+let videoContainer = null;
+
+let webcamVideoContainer = null;
+let webcamVideo = null;
+let remoteVideo = null;
+let joinBtn = null;
+let hangupButton = null;
+let muteAudioBtn = null;
+let muteVideoBtn = null;
+let hideLocalVideoBtn = null;
+let showLocalVideoBtn = null;
+let screenShareBtn = null;
+let board = null;
+let boardBtn = null;
+let isBoardVisible = false;
+
+let userAudioMuteIndicator = null;
+let userVideoMuteIndicator = null;
+let userScreenSharingMuteIndicator = null;
+
+let callBtnContainer = null;
+
+
+// Global State
+let pc = null;
+let localStream = null;
+let remoteStream = null;
+let toggleStreamObj = null;
+
+var candidates = [];
+
+let isJoined = false;
+let isScreenShared = false;
+
+let socket;
 
 export const VideoCall = () => {
 
     const [micIcon, setMicIcon] = useState("la la-microphone");
     const [videoIcon, setVideoIcon] = useState("la la-video");
     const [screenIcon, setScreenIcon] = useState("las la-desktop");
+    const [boardIcon, setBoardIcon] = useState("las la-clipboard");
+
 
     const { token, meetingId, lang } = useParams();
 
-    let videoContainer = null;
-
-    let webcamVideoContainer = null;
-    let webcamVideo = null;
-    let remoteVideo = null;
-    let joinBtn = null;
-    let hangupButton = null;
-    let muteAudioBtn = null;
-    let muteVideoBtn = null;
-    let hideLocalVideoBtn = null;
-    let showLocalVideoBtn = null;
-    let screenShareBtn = null;
-    let userAudioMuteIndicator = null;
-    let userVideoMuteIndicator = null;
-    let userScreenSharingMuteIndicator = null;
-
-    let callBtnContainer = null;
-
-
-    // Global State
-    var pc = null;
-    let localStream = null;
-    let remoteStream = null;
-    let toggleStreamObj = null;
-
-    var candidates = [];
-
-    let isJoined = false;
-    let isScreenShared = false;
-
-    var socket;
-
-
-    function init() {
-        socket = io('http://192.168.10.104:3601', { transports: ['websocket', 'polling', 'flashsocket'] });
-
+    function initSocket() {
+        socket = io(URLs.main, IOConfig);
 
         socket.on(IOEvents.CONNECT, function () {
             socket.emit(IOEvents.SET_LANGUAGE, {
@@ -79,24 +85,25 @@ export const VideoCall = () => {
         });
 
         socket.on(IOEvents.ALREADY_JOINED, function (res) {
+            console.log(IOEvents.ALREADY_JOINED, res)
             hangupButton.click()
             toast(res.message)
         });
 
         socket.on(IOEvents.INVALID_PARTICIPANT, function (res) {
-
+            console.log(IOEvents.INVALID_PARTICIPANT, res)
             hangupButton.click()
             toast(res.message, 5000)
         });
 
         socket.on(IOEvents.MEETING_NOT_FOUND, function (res) {
-            console.log(IOEvents.MEETING_NOT_FOUND)
+            console.log(IOEvents.MEETING_NOT_FOUND, res)
             hangupButton.click()
             toast(res.message, 5000)
         });
 
         socket.on(IOEvents.MEETING_NOT_ACTIVE, function (res) {
-
+            console.log(IOEvents.MEETING_NOT_ACTIVE, res)
             hangupButton.click()
             toast(res.message, 5000)
         });
@@ -111,12 +118,15 @@ export const VideoCall = () => {
             setTimeout(() => {
 
                 initVideoState()
+                candidates = []
+                setupIceEventBeforeStartCall()
                 joinRoom()
             }, 200);
 
         });
 
         socket.on(IOEvents.ROOM_NOT_FOUND, function (res) {
+            console.log(IOEvents.ROOM_NOT_FOUND, res)
             toast(res.message)
 
             endVideoCall()
@@ -124,7 +134,7 @@ export const VideoCall = () => {
         });
 
         socket.on(IOEvents.CREATE_ICE_EVENT_DATA, (data) => {
-
+            console.log(IOEvents.CREATE_ICE_EVENT_DATA, data)
             if (data) {
                 console.log(IOEvents.CREATE_ICE_EVENT_DATA);
                 const candidate = new RTCIceCandidate(data);
@@ -134,6 +144,7 @@ export const VideoCall = () => {
         });
 
         socket.on(IOEvents.RECEIVE_ANSWER, (data) => {
+            console.log(IOEvents.RECEIVE_ANSWER, data)
 
             if (!pc.currentRemoteDescription && data) {
                 console.log(IOEvents.RECEIVE_ANSWER);
@@ -147,7 +158,7 @@ export const VideoCall = () => {
         });
 
         socket.on(IOEvents.ROOM_JOIN, async (data) => {
-
+            console.log(IOEvents.ROOM_JOIN, data)
             if (!data) {
                 console.log("ROOM_JOIN return", data)
                 return
@@ -170,8 +181,6 @@ export const VideoCall = () => {
                     sdp: answerDescription.sdp,
                 }
             });
-            candidates = []
-            setupIceEventBeforeStartCall()
 
         });
 
@@ -195,6 +204,7 @@ export const VideoCall = () => {
             muteVideoBtn.style.display = "initial";
             muteAudioBtn.style.display = "initial";
             screenShareBtn.style.display = "initial";
+            boardBtn.style.display = "initial";
 
 
             joinBtn.disabled = false;
@@ -261,6 +271,19 @@ export const VideoCall = () => {
             userScreenSharingMuteIndicator.style.display = "none";
         });
 
+        socket.on(IOEvents.OPEN_BOARD, function () {
+            console.log(IOEvents.OPEN_BOARD)
+            toggleBoard()
+        });
+        socket.on(IOEvents.CLOSE_BOARD, function () {
+            console.log(IOEvents.OPEN_BOARD)
+            toggleBoard()
+        });
+    }
+
+    function init() {
+
+        initSocket()
 
         // HTML elements
         videoContainer = document.getElementById('videos');
@@ -271,6 +294,8 @@ export const VideoCall = () => {
         hangupButton = document.getElementById('hangupButton');
         muteAudioBtn = document.getElementById('muteMic');
         muteVideoBtn = document.getElementById('muteVideo');
+        board = document.getElementById('board');
+        boardBtn = document.getElementById('boardBtn');
         hideLocalVideoBtn = document.getElementById('hideLocalVideoBtn');
         showLocalVideoBtn = document.getElementById('showLocalVideoBtn');
         screenShareBtn = document.getElementById('screenShareBtn');
@@ -283,6 +308,7 @@ export const VideoCall = () => {
         muteAudioBtn.onclick = toggleMicrophone
         muteVideoBtn.onclick = toggleVideo
         screenShareBtn.onclick = toggleScreenShare
+        boardBtn.onclick = toggleBoard
 
 
         hideLocalVideoBtn.onclick = () => {
@@ -390,7 +416,7 @@ export const VideoCall = () => {
     //DONE
     async function initCamera() {
         //
-        localStream = await navigator.mediaDevices.getUserMedia(videoSharingConfig);
+        localStream = await navigator.mediaDevices.getUserMedia(VideoSharingConfig);
         remoteStream = new MediaStream();
 
         // Push tracks from local stream to peer connection
@@ -422,6 +448,10 @@ export const VideoCall = () => {
         muteVideoBtn.style.display = "none";
         muteAudioBtn.style.display = "none";
         screenShareBtn.style.display = "none";
+
+        isBoardVisible = false;
+        board.style.display = "none";
+        boardBtn.style.display = "none";
         showLocalVideoBtn.style.display = "none";
         hideLocalVideoBtn.style.display = "none";
 
@@ -441,6 +471,7 @@ export const VideoCall = () => {
         setVideoIcon("la la-video")
         setScreenIcon("las la-desktop")
         setScreenIcon("las la-desktop")
+        setBoardIcon("las la-pencil-alt")
 
         // Enabling display of hoverable controlls
         callBtnContainer.style.display = "block"
@@ -448,6 +479,21 @@ export const VideoCall = () => {
         videoContainer.onmouseout = null;
         callBtnContainer.onmouseover = null;
         callBtnContainer.onmouseout = null;
+    }
+
+    function toggleBoard() {
+
+        if (isBoardVisible) {
+            board.style.display = "none"
+            setBoardIcon("las la-pencil-alt")
+            // socket.emit(IOEvents.CLOSE_BOARD);
+        } else {
+            board.style.display = "initial"
+            setBoardIcon("las la-pencil-ruler")
+            board.src = URLs.board + meetingId;
+            // socket.emit(IOEvents.OPEN_BOARD);
+        }
+        isBoardVisible = !isBoardVisible
     }
 
     function createRoom() {
@@ -520,12 +566,12 @@ export const VideoCall = () => {
         try {
             if (isScreenShared) {
 
-                toggleStreamObj = await navigator.mediaDevices.getUserMedia(videoSharingConfig);
+                toggleStreamObj = await navigator.mediaDevices.getUserMedia(VideoSharingConfig);
 
                 setScreenIcon("las la-desktop")
                 isScreenShared = false;
             } else {
-                toggleStreamObj = await navigator.mediaDevices.getDisplayMedia(screenSharingConfig);
+                toggleStreamObj = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig);
                 setScreenIcon("las la-camera")
                 isScreenShared = true;
             }
@@ -562,8 +608,6 @@ export const VideoCall = () => {
         }, 3000);
     }
 
-
-
     async function startVideoCall() {
         joinBtn.disabled = true;
         initVideoState()
@@ -579,8 +623,6 @@ export const VideoCall = () => {
         }
         isJoined = false
     }
-
-
 
 
     return (
@@ -627,8 +669,16 @@ export const VideoCall = () => {
                     <button className="operation-btn" id="showLocalVideoBtn" style={{ display: 'none' }}>
                         <i className="lab la-creative-commons-by"></i>
                     </button>
+                    <button className="operation-btn" id="boardBtn" style={{ display: 'none' }}>
+                        <i className={boardIcon}></i>
+                    </button>
                 </div>
 
+            </Col>
+            <Col lg={12}>
+                <iframe id="board" src="" className="mt-5" style={{ display: 'none' }}>
+
+                </iframe>
             </Col>
             <Col className=" mt-3 mb-3 d-flex justify-content-center">
                 <div id="snackbar"></div>

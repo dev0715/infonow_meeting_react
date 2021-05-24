@@ -1,3 +1,5 @@
+
+
 export const servers = {
     iceServers: [
         {
@@ -10,7 +12,9 @@ export const servers = {
     iceCandidatePoolSize: 10,
 };
 
-export const videoSharingConfig = {
+export const IOConfig = { transports: ['websocket', 'polling', 'flashsocket'] }
+
+export const VideoSharingConfig = {
     video: {
         width: {
             min: 640,
@@ -28,7 +32,7 @@ export const videoSharingConfig = {
     },
 };
 
-export const screenSharingConfig = {
+export const ScreenSharingConfig = {
     logicalSurface: true,
     video: {
         cursor: "always" | "motion" | "never",

@@ -12,7 +12,7 @@ function App() {
   return (
     <Router>
       <Switch>
-        <Route path="/:token/:meetingId/:lang?" >
+        <Route path="/:meetingId/:token/:lang?" >
           <VideoCall />
         </Route>
       </Switch>
