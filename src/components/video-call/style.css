@@ -13,6 +13,7 @@ body {
 #videos {
 	width: 100%;
 	height: 100vh;
+	overflow: hidden;
 }
 
 #remoteVideo {
@@ -30,8 +31,8 @@ body {
 	position: absolute;
 	top: 15px;
 	right: 40px;
-	width: 320px;
-	height: 240px;
+	width: 250px;
+	height: 188px;
 	background: #000000;
 	border-radius: 7px;
 	box-shadow: 1px 1px 8px #000;
@@ -171,8 +172,8 @@ body {
 }
 
 #board {
-	width: 100vw;
-	height: 80vh;
+	width: 100%;
+	height: 100%;
 	display: initial;
 	background-color: white;
 	overflow: hidden;
@@ -301,8 +302,8 @@ body {
 		position: absolute;
 		top: 15px;
 		right: 40px;
-		width: 320px;
-		height: 240px;
+		width: 250px;
+		height: 188px;
 		background: #000000;
 		border-radius: 7px;
 		box-shadow: 1px 1px 8px #000;

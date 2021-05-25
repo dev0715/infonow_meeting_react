@@ -6,7 +6,7 @@ import './style.css';
 import { IOEvents } from "./events"
 import { servers, VideoSharingConfig, ScreenSharingConfig, IOConfig } from './config';
 import { useParams } from 'react-router';
-import { URLs } from '../urls';
+import { URLs } from './urls';
 
 
 
@@ -25,6 +25,7 @@ let screenShareBtn = null;
 let board = null;
 let boardBtn = null;
 let isBoardVisible = false;
+let isRemoteVideoMuted = false;
 
 let userAudioMuteIndicator = null;
 let userVideoMuteIndicator = null;
@@ -244,21 +245,22 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.MUTE_VIDEO, function () {
             console.log(IOEvents.MUTE_VIDEO)
-            webcamVideo.classList.remove("active");
-            remoteVideo.classList.remove("active");
+            isRemoteVideoMuted = true
             userVideoMuteIndicator.style.display = "initial";
-            hideLocalVideoBtn.style.display = "none";
-            webcamVideo.style.display = "initial";
-            showLocalVideoBtn.style.display = "none";
-
+            if (!isBoardVisible) {
+                onMuteRemoteVideo()
+            }
         });
 
         socket.on(IOEvents.UNMUTE_VIDEO, function () {
             console.log(IOEvents.UNMUTE_VIDEO)
-            webcamVideo.classList.add("active");
-            remoteVideo.classList.add("active");
+            isRemoteVideoMuted = false
             userVideoMuteIndicator.style.display = "none";
-            hideLocalVideoBtn.style.display = "initial";
+
+            if (!isBoardVisible) {
+                onUnmuteRemoteVideo()
+            }
+
         });
 
         socket.on(IOEvents.SCREEN_SHARING, function () {
@@ -271,14 +273,20 @@ export const VideoCall = () => {
             userScreenSharingMuteIndicator.style.display = "none";
         });
 
-        socket.on(IOEvents.OPEN_BOARD, function () {
-            console.log(IOEvents.OPEN_BOARD)
-            toggleBoard()
-        });
-        socket.on(IOEvents.CLOSE_BOARD, function () {
-            console.log(IOEvents.OPEN_BOARD)
-            toggleBoard()
-        });
+    }
+
+    function onMuteRemoteVideo() {
+        webcamVideo.classList.remove("active");
+        remoteVideo.classList.remove("active");
+        hideLocalVideoBtn.style.display = "none";
+        webcamVideo.style.display = "initial";
+        showLocalVideoBtn.style.display = "none";
+    }
+
+    function onUnmuteRemoteVideo() {
+        webcamVideo.classList.add("active");
+        remoteVideo.classList.add("active");
+        hideLocalVideoBtn.style.display = "initial";
     }
 
     function init() {
@@ -458,6 +466,7 @@ export const VideoCall = () => {
         // Video Views
         webcamVideo.classList.remove("active");
         remoteVideo.classList.remove("active");
+        remoteVideo.style.display = "initial";
 
         webcamVideo.style.display = "initial";
         webcamVideoContainer.style.display = "initial";
@@ -473,7 +482,7 @@ export const VideoCall = () => {
         setScreenIcon("las la-desktop")
         setBoardIcon("las la-pencil-alt")
 
-        // Enabling display of hoverable controlls
+        // Enabling display of hoverable controls
         callBtnContainer.style.display = "block"
         videoContainer.onmouseover = null;
         videoContainer.onmouseout = null;
@@ -481,17 +490,24 @@ export const VideoCall = () => {
         callBtnContainer.onmouseout = null;
     }
 
+
     function toggleBoard() {
 
         if (isBoardVisible) {
             board.style.display = "none"
             setBoardIcon("las la-pencil-alt")
-            // socket.emit(IOEvents.CLOSE_BOARD);
+            remoteVideo.style.display = "initial";
+            if (isRemoteVideoMuted) {
+                onMuteRemoteVideo()
+            }
         } else {
+            if (isRemoteVideoMuted) {
+                onUnmuteRemoteVideo()
+            }
+            remoteVideo.style.display = "none";
             board.style.display = "initial"
             setBoardIcon("las la-pencil-ruler")
             board.src = URLs.board + meetingId;
-            // socket.emit(IOEvents.OPEN_BOARD);
         }
         isBoardVisible = !isBoardVisible
     }
@@ -637,6 +653,8 @@ export const VideoCall = () => {
                 <span>
                     <video id="remoteVideo" autoPlay={true} playsInline style={{ objectFit: 'contain' }}></video>
                 </span>
+                <iframe id="board" src="" style={{ display: 'none' }}>
+                </iframe>
                 <div className="indicator-container">
                     <span id="user-audio-icon" >
                         <i className="la la-user"></i>
@@ -673,15 +691,9 @@ export const VideoCall = () => {
                         <i className={boardIcon}></i>
                     </button>
                 </div>
-
-            </Col>
-            <Col lg={12}>
-                <iframe id="board" src="" className="mt-5" style={{ display: 'none' }}>
-
-                </iframe>
-            </Col>
-            <Col className=" mt-3 mb-3 d-flex justify-content-center">
-                <div id="snackbar"></div>
+                <div className=" mt-3 mb-3 d-flex justify-content-center">
+                    <div id="snackbar"></div>
+                </div>
             </Col>
         </Row >);
 
