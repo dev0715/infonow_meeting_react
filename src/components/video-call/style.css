@@ -158,7 +158,6 @@ body {
 	align-items: center;
 	text-align: center;
 	width: 90vw;
-	display: none;
 }
 
 #indicator-container .btns {
@@ -178,8 +177,6 @@ body {
 }
 
 #indicator-container .btns .indicator span {
-	display: none;
-
 	margin-right: 5px;
 	padding: 5px 7px;
 	background-color: rgb(0, 0, 0);

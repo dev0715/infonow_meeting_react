@@ -10,29 +10,29 @@ import { getWhiteboardUrl, URLs } from './urls';
 
 
 
-let videoContainer = null;
+// let videoContainer = null;
 
-let webcamVideoContainer = null;
-let webcamVideo = null;
-let remoteVideo = null;
-let joinBtn = null;
-let hangupButton = null;
-let muteAudioBtn = null;
-let muteVideoBtn = null;
-let hideLocalVideoBtn = null;
-let showLocalVideoBtn = null;
-let screenShareBtn = null;
-let whiteBoard = null;
-let boardBtn = null;
-let isBoardVisible = false;
-let isRemoteVideoMuted = false;
+// let webcamVideoContainer = null;
+// let webcamVideo = null;
+// let remoteVideo = null;
+// let joinBtn = null;
+// let hangupButton = null;
+// let muteAudioBtn = null;
+// let muteVideoBtn = null;
+// let hideLocalVideoBtn = null;
+// let showLocalVideoBtn = null;
+// let screenShareBtn = null;
+// let whiteBoard = null;
+// let boardBtn = null;
+// let isBoardVisible = false;
+// let isRemoteVideoMuted = false;
 
-let indicatorContainer = null;
-let userAudioMuteIndicator = null;
-let userVideoMuteIndicator = null;
-let userScreenSharingMuteIndicator = null;
+// let indicatorContainer = null;
+// let userAudioMuteIndicator = null;
+// let userVideoMuteIndicator = null;
+// let userScreenSharingMuteIndicator = null;
 
-let callBtnContainer = null;
+// let callBtnContainer = null;
 
 
 // Global State
@@ -43,27 +43,54 @@ let toggleStreamObj = null;
 
 var candidates = [];
 
-let isJoined = false;
-let isScreenShared = false;
+// let isJoined = false;
+// let isScreenShared = false;
 
 let socket;
 
-let user = {};
+// let user = {};
 
 export const VideoCall = () => {
 
-    const [micIcon, setMicIcon] = useState("la la-microphone");
-    const [videoIcon, setVideoIcon] = useState("la la-video");
-    const [screenIcon, setScreenIcon] = useState("las la-desktop");
-    const [boardIcon, setBoardIcon] = useState("las la-pencil-alt");
 
+    const [isAuthorized, setAuthorized] = useState(false);
+
+    const [isJoined, setJoined] = useState(false);
+    const [isCalling, setCalling] = useState(false);
+    const [isCallStarted, setCallStarted] = useState(false);
+
+    const [isRemoteMicMute, setRemoteMicMute] = useState(false);
+    const [isRemoteVideoMute, setRemoteVideoMute] = useState(false);
+    const [isRemoteScreenSharing, setRemoteScreenSharing] = useState(false);
     const [isRemoteBoardOpen, setRemoteBoardOpen] = useState(false);
 
+    const [isLocalAudioSharing, setLocalAudioSharing] = useState(true);
+    const [isLocalVideoSharing, setLocalVideoSharing] = useState(true);
+    const [isLocalScreenSharing, setLocalScreenSharing] = useState(false);
+    const [isLocalBoardOpen, setLocalBoardOpen] = useState(false);
+    const [boardUrl, setBoardUrl] = useState(null);
 
+    const [webcamVideoRef, setWebcamVideoRef] = useState(React.createRef());
+    const [remoteVideoRef, setRemoteVideoRef] = useState(React.createRef());
+
+    const [isLocalVideoHidden, setLocalVideoHidden] = useState(false);
+
+
+
+
+    const [user, setUser] = useState({});
     const [remoteUser, setRemoteUser] = useState({});
 
 
     const { token, meetingId, lang } = useParams();
+
+    const endCallCallback = (event, res) => {
+        console.log(event, res)
+        if (res.message) {
+            toast(res.message)
+        }
+        endVideoCall()
+    }
 
     function initSocket() {
         socket = io(URLs.main, IOConfig);
@@ -78,46 +105,29 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.END_CALL, function () {
             console.log(IOEvents.END_CALL)
-            hangupButton.click()
+            endVideoCall()
         });
 
         socket.on(IOEvents.AUTHORIZATION, function (res) {
             console.log(IOEvents.AUTHORIZATION, res)
             //------------static for testing ----------//
-            if (!res.success) {
-                joinBtn.disabled = true
-                toast("You are not authorized")
-            } else {
-                user = res.data;
-                toast(`Welcome ${user.name}, you are successfully authorized`)
-                joinBtn.disabled = false
+            if (res.success) {
+                toast(`Welcome ${res.data.name}, you are successfully authorized`)
+                setAuthorized(true)
+                setUser(res.data);
             }
-
+            else {
+                setAuthorized(false)
+                setUser({});
+                toast("You are not authorized")
+            }
         });
 
-        socket.on(IOEvents.ALREADY_JOINED, function (res) {
-            console.log(IOEvents.ALREADY_JOINED, res)
-            hangupButton.click()
-            toast(res.message)
-        });
-
-        socket.on(IOEvents.INVALID_PARTICIPANT, function (res) {
-            console.log(IOEvents.INVALID_PARTICIPANT, res)
-            hangupButton.click()
-            toast(res.message, 5000)
-        });
-
-        socket.on(IOEvents.MEETING_NOT_FOUND, function (res) {
-            console.log(IOEvents.MEETING_NOT_FOUND, res)
-            hangupButton.click()
-            toast(res.message, 5000)
-        });
-
-        socket.on(IOEvents.MEETING_NOT_ACTIVE, function (res) {
-            console.log(IOEvents.MEETING_NOT_ACTIVE, res)
-            hangupButton.click()
-            toast(res.message, 5000)
-        });
+        socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
+        socket.on(IOEvents.INVALID_PARTICIPANT, res => endCallCallback(IOEvents.INVALID_PARTICIPANT, res));
+        socket.on(IOEvents.MEETING_NOT_FOUND, res => endCallCallback(IOEvents.MEETING_NOT_FOUND, res));
+        socket.on(IOEvents.MEETING_NOT_ACTIVE, res => endCallCallback(IOEvents.MEETING_NOT_ACTIVE, res));
+        socket.on(IOEvents.ROOM_NOT_FOUND, res => endCallCallback(IOEvents.ROOM_NOT_FOUND, res));
 
         socket.on(IOEvents.ROOM_EXIST, function () {
 
@@ -136,13 +146,6 @@ export const VideoCall = () => {
 
         });
 
-        socket.on(IOEvents.ROOM_NOT_FOUND, function (res) {
-            console.log(IOEvents.ROOM_NOT_FOUND, res)
-            toast(res.message)
-
-            endVideoCall()
-
-        });
 
         socket.on(IOEvents.CREATE_ICE_EVENT_DATA, (data) => {
             console.log(IOEvents.CREATE_ICE_EVENT_DATA, data)
@@ -173,105 +176,76 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.ROOM_JOIN, async (data) => {
             console.log(IOEvents.ROOM_JOIN, data)
-            if (!data) {
-                console.log("ROOM_JOIN return", data)
-                return
+            if (data) {
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+
+                const answerDescription = await pc.createAnswer();
+                await pc.setLocalDescription(answerDescription);
+
+                //----------------------------------------//
+                //---------------SEND ANSWER-------------//
+                //--------------------------------------//
+
+                socket.emit(IOEvents.ANSWER_CALL, {
+                    type: IOEvents.ANSWER_CALL,
+                    data: {
+                        type: answerDescription.type,
+                        sdp: answerDescription.sdp,
+                    }
+                });
             }
-            console.log("ROOM_JOIN")
-
-            await pc.setRemoteDescription(new RTCSessionDescription(data));
-
-            const answerDescription = await pc.createAnswer();
-            await pc.setLocalDescription(answerDescription);
-
-            //----------------------------------------//
-            //---------------SEND ANSWER-------------//
-            //--------------------------------------//
-
-            socket.emit(IOEvents.ANSWER_CALL, {
-                type: IOEvents.ANSWER_CALL,
-                data: {
-                    type: answerDescription.type,
-                    sdp: answerDescription.sdp,
-                }
-            });
-
         });
 
         socket.on(IOEvents.JOINED_ROOM_AS_RECEIVER, function (res) {
-            console.log(IOEvents.JOINED_ROOM_AS_RECEIVER)
-            setRemoteUser(res.data);
-            toast(`${res.data.name} has already joined the meeting`)
-            isJoined = true;
+            console.log(IOEvents.JOINED_ROOM_AS_RECEIVER, res)
+            if (res.data) {
+                toast(`${res.data.name} has already joined the meeting`)
+                setRemoteUser(res.data);
+                setJoined(true);
+            } else {
+                endVideoCall()
+            }
         });
 
         socket.on(IOEvents.CALL_ON_WAIT, function () {
             console.log(IOEvents.CALL_ON_WAIT)
-            joinBtn.innerHTML = "Waiting for peer to Join"
-            isJoined = true;
+            setJoined(true)
         });
 
         socket.on(IOEvents.START_CALL, () => {
-
             console.log(IOEvents.START_CALL)
             setupIceEventOnStartCall()
-
-            joinBtn.style.display = "none";
-            indicatorContainer.style.display = "initial"
-            muteVideoBtn.style.display = "initial";
-            muteAudioBtn.style.display = "initial";
-            screenShareBtn.style.display = "initial";
-            boardBtn.style.display = "initial";
-
-
-            joinBtn.disabled = false;
-            webcamVideo.classList.add("active");
-            remoteVideo.classList.add("active");
-
-            hideLocalVideoBtn.style.display = "initial";
-
-            videoContainer.classList.add("active");
-
+            setCallStarted(true)
         });
 
         socket.on(IOEvents.MUTE_AUDIO, function () {
             console.log(IOEvents.MUTE_AUDIO)
-            userAudioMuteIndicator.style.display = "initial";
+            setRemoteMicMute(true)
         });
 
         socket.on(IOEvents.UNMUTE_AUDIO, function () {
             console.log(IOEvents.UNMUTE_AUDIO)
-            userAudioMuteIndicator.style.display = "none";
+            setRemoteMicMute(false)
         });
 
         socket.on(IOEvents.MUTE_VIDEO, function () {
             console.log(IOEvents.MUTE_VIDEO)
-            isRemoteVideoMuted = true
-            userVideoMuteIndicator.style.display = "initial";
-            if (!isBoardVisible) {
-                onMuteRemoteVideo()
-            }
+            setRemoteVideoMute(true)
         });
 
         socket.on(IOEvents.UNMUTE_VIDEO, function () {
             console.log(IOEvents.UNMUTE_VIDEO)
-            isRemoteVideoMuted = false
-            userVideoMuteIndicator.style.display = "none";
-
-            if (!isBoardVisible) {
-                onUnmuteRemoteVideo()
-            }
-
+            setRemoteVideoMute(false)
         });
 
         socket.on(IOEvents.SCREEN_SHARING, function () {
             console.log(IOEvents.SCREEN_SHARING)
-            userScreenSharingMuteIndicator.style.display = "initial";
+            setRemoteScreenSharing(true)
         });
 
         socket.on(IOEvents.VIDEO_SHARING, function () {
             console.log(IOEvents.VIDEO_SHARING)
-            userScreenSharingMuteIndicator.style.display = "none";
+            setRemoteScreenSharing(false)
         });
 
         socket.on(IOEvents.OPEN_BOARD, function () {
@@ -286,68 +260,25 @@ export const VideoCall = () => {
 
     }
 
-    function onMuteRemoteVideo() {
-        webcamVideo.classList.remove("active");
-        remoteVideo.classList.remove("active");
-        hideLocalVideoBtn.style.display = "none";
-        webcamVideo.style.display = "initial";
-        showLocalVideoBtn.style.display = "none";
-    }
-
-    function onUnmuteRemoteVideo() {
-        webcamVideo.classList.add("active");
-        remoteVideo.classList.add("active");
-        hideLocalVideoBtn.style.display = "initial";
-    }
 
     function init() {
 
         initSocket()
 
-        // HTML elements
-        videoContainer = document.getElementById('videos');
-        webcamVideoContainer = document.getElementById('webcamVideoContainer');
-        webcamVideo = document.getElementById('webcamVideo');
-        remoteVideo = document.getElementById('remoteVideo');
-        joinBtn = document.getElementById('joinBtn');
-        hangupButton = document.getElementById('hangupButton');
-        muteAudioBtn = document.getElementById('muteMic');
-        muteVideoBtn = document.getElementById('muteVideo');
-        whiteBoard = document.getElementById("whiteBoard");
-        boardBtn = document.getElementById('boardBtn');
-        hideLocalVideoBtn = document.getElementById('hideLocalVideoBtn');
-        showLocalVideoBtn = document.getElementById('showLocalVideoBtn');
-        screenShareBtn = document.getElementById('screenShareBtn');
-        indicatorContainer = document.getElementById("indicator-container")
-        userAudioMuteIndicator = document.getElementById('user-audio-icon');
-        userVideoMuteIndicator = document.getElementById('user-video-icon');
-        userScreenSharingMuteIndicator = document.getElementById('user-screen-sharing-icon');
-        callBtnContainer = document.getElementById('btn-video-call-container');
-        joinBtn.onclick = startVideoCall;
-        hangupButton.onclick = endVideoCall
-        muteAudioBtn.onclick = toggleMicrophone
-        muteVideoBtn.onclick = toggleVideo
-        screenShareBtn.onclick = toggleScreenShare
-        boardBtn.onclick = toggleBoard
-
-
-        hideLocalVideoBtn.onclick = () => {
-            hideLocalVideoBtn.style.display = "none";
-            webcamVideo.style.display = "none";
-            showLocalVideoBtn.style.display = "initial";
-        }
-
-        showLocalVideoBtn.onclick = () => {
-            hideLocalVideoBtn.style.display = "initial";
-            webcamVideo.style.display = "initial";
-            showLocalVideoBtn.style.display = "none";
-        }
     }
 
     useEffect(() => {
         init()
     }, [])
 
+
+    function hideLocalVideo() {
+        setLocalVideoHidden(true)
+    }
+
+    function showLocalVideo() {
+        setLocalVideoHidden(false)
+    }
 
     function initVideoState() {
         // Global State
@@ -379,12 +310,6 @@ export const VideoCall = () => {
             }
         };
 
-        // pc.oniceconnectionstatechange = function () {
-        //     if (pc.iceConnectionState == 'disconnected') {
-        //         console.log(' user Disconnected');
-        //         hangupButton.click()
-        //     }
-        // }
     }
 
     function setupIceEventBeforeStartCall() {
@@ -402,7 +327,7 @@ export const VideoCall = () => {
         try {
             remoteStream.getAudioTracks()[0].stop();
             remoteStream.getVideoTracks()[0].stop();
-            remoteVideo.srcObject = null
+            remoteVideoRef.current.srcObject = null
         } catch (error) {
             console.log("CLOSING REMOTE STREAM")
         }
@@ -413,7 +338,7 @@ export const VideoCall = () => {
         try {
             localStream.getAudioTracks()[0].stop();
             localStream.getVideoTracks()[0].stop();
-            webcamVideo.srcObject = null
+            webcamVideoRef.current.srcObject = null
             if (toggleStreamObj) {
                 toggleStreamObj.getAudioTracks()[0].stop();
                 toggleStreamObj.getVideoTracks()[0].stop();
@@ -451,81 +376,16 @@ export const VideoCall = () => {
             });
         };
 
-        webcamVideo.srcObject = localStream;
-        remoteVideo.srcObject = remoteStream;
-
-        joinBtn.innerHTML = "Joining"
-        hangupButton.style.display = "initial";
-    }
-
-    // DONE
-    function resetScreenAndButtons() {
-
-        setRemoteUser({})
-
-        joinBtn.innerHTML = "Join Meeting"
-        joinBtn.disabled = false;
-        joinBtn.style.display = "initial";
-        hangupButton.style.display = "none";
-        muteVideoBtn.style.display = "none";
-        muteAudioBtn.style.display = "none";
-        screenShareBtn.style.display = "none";
-
-        isBoardVisible = false;
-        whiteBoard.style.display = "none";
-        boardBtn.style.display = "none";
-        showLocalVideoBtn.style.display = "none";
-        hideLocalVideoBtn.style.display = "none";
-
-        // Video Views
-        webcamVideo.classList.remove("active");
-        remoteVideo.classList.remove("active");
-        remoteVideo.style.display = "initial";
-
-        webcamVideo.style.display = "initial";
-        webcamVideoContainer.style.display = "initial";
-
-        // Mute indicators
-        indicatorContainer.style.display = "none"
-        userAudioMuteIndicator.style.display = "none";
-        userVideoMuteIndicator.style.display = "none";
-        userScreenSharingMuteIndicator.style.display = "none";
-
-        // Mute Buttons
-        setMicIcon("la la-microphone");
-        setVideoIcon("la la-video")
-        setScreenIcon("las la-desktop")
-        setScreenIcon("las la-desktop")
-        setBoardIcon("las la-pencil-alt")
-        setRemoteBoardOpen(false)
-
-        // Enabling display of hoverable controls
-        callBtnContainer.style.display = "block"
-        videoContainer.classList.remove("active");
+        webcamVideoRef.current.srcObject = localStream
+        remoteVideoRef.current.srcObject = remoteStream
     }
 
 
     function toggleBoard() {
+        socket.emit(isLocalBoardOpen ? IOEvents.CLOSE_BOARD : IOEvents.OPEN_BOARD)
+        setBoardUrl(isLocalBoardOpen ? null : getWhiteboardUrl(meetingId, user.userId))
+        setLocalBoardOpen(!isLocalBoardOpen)
 
-        if (isBoardVisible) {
-            whiteBoard.style.display = "none"
-            setBoardIcon("las la-pencil-alt")
-            remoteVideo.style.display = "initial";
-            if (isRemoteVideoMuted) {
-                onMuteRemoteVideo()
-            }
-            socket.emit(IOEvents.CLOSE_BOARD)
-        } else {
-            if (isRemoteVideoMuted) {
-                onUnmuteRemoteVideo()
-            }
-            remoteVideo.style.display = "none";
-            whiteBoard.style.display = "initial"
-            setBoardIcon("las la-pencil-ruler")
-            whiteBoard.src = getWhiteboardUrl(meetingId, user.userId);
-            socket.emit(IOEvents.OPEN_BOARD)
-        }
-        isBoardVisible = !isBoardVisible
     }
 
     function createRoom() {
@@ -567,62 +427,42 @@ export const VideoCall = () => {
     function toggleMicrophone() {
 
         localStream.getAudioTracks()[0].enabled = !(localStream.getAudioTracks()[0].enabled);
-        if (localStream.getAudioTracks()[0].enabled) {
-
-            setMicIcon("la la-microphone")
-            socket.emit(IOEvents.UNMUTE_AUDIO);
-        } else {
-
-            setMicIcon("las la-microphone-slash")
-            socket.emit(IOEvents.MUTE_AUDIO);
-        }
+        socket.emit(localStream.getAudioTracks()[0].enabled ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
+        setLocalAudioSharing(localStream.getAudioTracks()[0].enabled)
     }
 
     function toggleVideo() {
+
         localStream.getVideoTracks()[0].enabled = !(localStream.getVideoTracks()[0].enabled);
-        if (localStream.getVideoTracks()[0].enabled) {
+        socket.emit(localStream.getVideoTracks()[0].enabled ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
+        setLocalVideoSharing(localStream.getVideoTracks()[0].enabled)
 
-            webcamVideoContainer.style.display = "initial";
-            setVideoIcon("la la-video")
-            socket.emit(IOEvents.UNMUTE_VIDEO);
-        } else {
-
-            webcamVideoContainer.style.display = "none";
-            setVideoIcon("las la-video-slash");
-            socket.emit(IOEvents.MUTE_VIDEO);
-        }
     }
 
     async function toggleScreenShare() {
 
         try {
-            if (isScreenShared) {
-
-                toggleStreamObj = await navigator.mediaDevices.getUserMedia(VideoSharingConfig);
-
-                setScreenIcon("las la-desktop")
-                isScreenShared = false;
+            console.log("isLocalScreenSharing", isLocalScreenSharing)
+            if (isLocalScreenSharing) {
+                toggleStreamObj = await navigator.mediaDevices.getUserMedia(VideoSharingConfig)
             } else {
-                toggleStreamObj = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig);
-                setScreenIcon("las la-camera")
-                isScreenShared = true;
+                toggleStreamObj = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
             }
+
             let videoTrack = toggleStreamObj.getVideoTracks()[0];
 
-            var sender = pc.getSenders().find(function (s) {
+            let sender = pc.getSenders().find(function (s) {
                 return s.track.kind == videoTrack.kind;
             });
             sender.replaceTrack(videoTrack);
             videoTrack.onended = () => {
                 toggleScreenShare()
             }
+            webcamVideoRef.current.srcObject = toggleStreamObj
 
-            webcamVideo.srcObject = toggleStreamObj;
-            if (isScreenShared) {
-                socket.emit(IOEvents.SCREEN_SHARING)
-            } else {
-                socket.emit(IOEvents.VIDEO_SHARING)
-            }
+            socket.emit(isLocalScreenSharing ? IOEvents.VIDEO_SHARING : IOEvents.SCREEN_SHARING)
+
+            setLocalScreenSharing(!isLocalScreenSharing)
 
         } catch (error) {
             console.log("Screen Toggle Error", error)
@@ -641,97 +481,165 @@ export const VideoCall = () => {
     }
 
     async function startVideoCall() {
-        joinBtn.disabled = true;
+        setCalling(true)
         initVideoState()
         setTimeout(createRoom, 1000);
     }
 
     function endVideoCall() {
-        closeConnection()
-        resetScreenAndButtons()
-
         if (isJoined) {
             socket.emit(IOEvents.END_CALL);
         }
-        isJoined = false
+        closeConnection()
+        resetAllStates()
+    }
+
+    function resetAllStates() {
+
+        setJoined(false)
+        setCalling(false)
+        setCallStarted(false)
+        setRemoteMicMute(false)
+        setRemoteVideoMute(false)
+        setRemoteScreenSharing(false)
+        setRemoteBoardOpen(false)
+
+        setLocalAudioSharing(true)
+        setLocalVideoSharing(true)
+        setLocalScreenSharing(false)
+        setLocalBoardOpen(false)
+        setBoardUrl(null)
+        setLocalVideoHidden(false)
+        webcamVideoRef.current.srcObject = null
+        remoteVideoRef.current.srcObject = null
+        setRemoteUser({})
     }
 
 
     return (
         <Row>
-            <Col lg={12} id="videos">
-                <span id="webcamVideoContainer">
-                    <video id="webcamVideo" muted="muted" autoPlay={true} playsInline style={{ objectFit: 'contain' }}></video>
-                    <button id="hideLocalVideoBtn" style={{ display: 'none' }}>
-                        <i className="la la-close"></i>
-                    </button>
-                </span>
+            <Col lg={12} id="videos" className={isCallStarted ? "active" : ""}>
                 <span>
-                    <video id="remoteVideo" autoPlay={true} playsInline style={{ objectFit: 'contain' }}></video>
+                    <video id="webcamVideo"
+                        ref={webcamVideoRef}
+                        className={isCallStarted ? (isRemoteVideoMute ? "" : "active") : ""}
+                        muted="muted" autoPlay={true}
+                        playsInline
+                        style={{
+                            objectFit: 'contain',
+                            display: isLocalVideoHidden ? 'none' : 'initial',
+                        }}
+                    ></video>
+                    {
+                        isCallStarted && !isLocalVideoHidden && isLocalVideoSharing && !isRemoteVideoMute &&
+                        <button id="hideLocalVideoBtn" onClick={hideLocalVideo}>
+                            <i className="la la-close"></i>
+                        </button>
+                    }
                 </span>
-                <iframe id="whiteBoard" src="" style={{ display: 'none' }}>
-                </iframe>
-                <div id="indicator-container">
-                    <div className="btns">
-                        {
-                            Object.keys(remoteUser).length > 0 &&
-                            <>
-                                <span >
-                                    <i className="la la-user"></i>
+
+                <span>
+                    <video id="remoteVideo"
+                        ref={remoteVideoRef}
+                        className={isCallStarted ? (isRemoteVideoMute ? "" : "active") : ""}
+                        autoPlay={true} playsInline
+                        style={{ objectFit: 'contain', display: isLocalBoardOpen ? 'none' : 'initial' }}
+                    ></video>
+                </span>
+                {
+                    isLocalBoardOpen &&
+                    <iframe id="whiteBoard" src={boardUrl} >
+                    </iframe>
+                }
+                {
+                    isCallStarted &&
+                    <>
+                        <div id="indicator-container">
+                            <div className="btns">
+                                {
+                                    Object.keys(remoteUser).length > 0 &&
+                                    <>
+                                        <span >
+                                            <i className="la la-user"></i>
                                 &nbsp;
                                 {remoteUser.name}
-                                </span>
-                            </>
-                        }
-                        <div className="indicator">
-                            <span id="user-audio-icon" >
-                                <i className="la la-microphone-slash "></i>
-                            </span>
-                            <span id="user-video-icon"  >
-                                <i className="las la-video-slash "></i>
-                            </span>
-                            <span id="user-screen-sharing-icon" >
-                                <i className="las la-desktop "></i>
-                            </span>
-                            {
-                                isRemoteBoardOpen &&
-                                <>
-                                    <span style={{ display: 'initial' }}>
-                                        <i className="las la-pencil-alt"></i>
-                                    </span>
-                                </>
-                            }
+                                        </span>
+                                    </>
+                                }
+                                <div className="indicator">
+                                    {
+                                        isRemoteMicMute &&
+                                        <span id="user-audio-icon" >
+                                            <i className="la la-microphone-slash "></i>
+                                        </span>
+                                    }
+                                    {
+                                        isRemoteVideoMute &&
+                                        <span id="user-video-icon"  >
+                                            <i className="las la-video-slash "></i>
+                                        </span>
+                                    }
+                                    {
+                                        isRemoteScreenSharing &&
+                                        <span id="user-screen-sharing-icon" >
+                                            <i className="las la-desktop "></i>
+                                        </span>
+                                    }
+                                    {
+                                        isRemoteBoardOpen &&
+                                        <span style={{ display: 'initial' }}>
+                                            <i className="las la-pencil-alt"></i>
+                                        </span>
+                                    }
+                                </div>
+                            </div>
                         </div>
-
-                    </div>
-
-
-                </div>
+                    </>
+                }
                 <div id="btn-video-call-container">
-                    <button id="joinBtn">Join Meeting</button>
-                    <button id="hangupButton" style={{ display: "none" }}>
-                        <i className="la la-phone"></i>
-                    </button>
-                    <button className="operation-btn" id="muteMic" style={{ display: 'none' }}>
-                        <i className={micIcon}></i>
-                    </button>
-                    <button className="operation-btn" id="muteVideo" style={{ display: 'none' }}>
-                        <i className={videoIcon}></i>
-                    </button>
-                    <button className="operation-btn" id="screenShareBtn" style={{ display: 'none' }}>
-                        <i className={screenIcon}></i>
-                    </button>
-                    <button className="operation-btn" id="showLocalVideoBtn" style={{ display: 'none' }}>
-                        <i className="lab la-creative-commons-by"></i>
-                    </button>
-                    <button className="operation-btn" id="boardBtn" style={{ display: 'none' }}>
-                        <i className={boardIcon}></i>
-                    </button>
+                    {
+                        !isCallStarted &&
+                        <button id="joinBtn" disabled={isCalling || !isAuthorized} onClick={startVideoCall}>
+                            {
+                                !isCalling ? "Join Meeting" : (isJoined ? "Waiting for peer to Join" : "Joining")
+                            }
+                        </button>
+                    }
+                    {
+                        (isCalling || isCallStarted) &&
+                        <button id="hangupButton" onClick={endVideoCall}>
+                            <i className="la la-phone"></i>
+                        </button>
+                    }
+                    {
+                        isCallStarted &&
+                        <>
+                            <button className="operation-btn" onClick={toggleMicrophone} >
+                                <i className={isLocalAudioSharing ? "la la-microphone" : "las la-microphone-slash"} ></i>
+                            </button>
+                            <button className="operation-btn" onClick={toggleVideo} >
+                                <i className={isLocalVideoSharing ? "la la-video" : "las la-video-slash"} ></i>
+                            </button>
+                            <button className="operation-btn" onClick={toggleScreenShare} >
+                                <i className={isLocalScreenSharing ? "las la-desktop" : "las la-camera"} ></i>
+                            </button>
+                            {
+                                isLocalVideoHidden &&
+                                <button className="operation-btn" onClick={showLocalVideo} >
+                                    <i className="lab la-creative-commons-by"></i>
+                                </button>
+                            }
+                            <button className="operation-btn" id="boardBtn" onClick={toggleBoard} >
+                                <i className={isLocalBoardOpen ? "las la-pencil-ruler" : "las la-pencil-alt"} ></i>
+                            </button>
+                        </>
+                    }
                 </div>
-                <div className="text-center">
-                    <div id="snackbar"></div>
-                </div>
+
             </Col>
+            <div className="text-center">
+                <div id="snackbar"></div>
+            </div>
         </Row >
     );
 
