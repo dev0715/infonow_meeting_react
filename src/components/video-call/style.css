@@ -96,8 +96,12 @@ body {
 	background: #df1616;
 }
 
+#videos.active #btn-video-call-container {
+	display: none;
+}
+
 #videos:hover.active #btn-video-call-container {
-	display: initial;
+	display: block;
 }
 
 #hideLocalVideoBtn {
@@ -108,7 +112,7 @@ body {
 	border: none;
 	border-radius: 50%;
 	outline: none;
-	background-color: transparent;
+	background-color: black;
 	color: white;
 	opacity: 0.6;
 	height: 30px;
@@ -147,33 +151,50 @@ body {
 	border: none !important;
 }
 
-.indicator-container {
+#indicator-container {
 	position: absolute;
 	top: 30px;
+	left: 110px;
 	align-items: center;
 	text-align: center;
-	width: 100%;
+	width: 90vw;
+	display: none;
 }
 
-.indicator-container span {
-	width: 80px;
-	height: 25px;
-	background-color: rgb(83, 82, 82);
-	color: white;
-	padding: 16px 20px;
-	border-radius: 50px;
-	margin: 10px 10px;
-	display: none;
+#indicator-container .btns {
 	opacity: 0.5;
 }
 
-.indicator-container span:hover {
+#indicator-container .btns span {
+	background-color: rgb(83, 82, 82);
+	color: white;
+	padding: 14px 14px;
+	border-radius: 50px;
+}
+
+#indicator-container .btns .indicator {
+	padding-top: 5px;
+	padding-left: 10px;
+}
+
+#indicator-container .btns .indicator span {
+	display: none;
+
+	margin-right: 5px;
+	padding: 5px 7px;
+	background-color: rgb(0, 0, 0);
+	color: rgb(255, 255, 255);
+	border-radius: 50px;
+	font-size: 20px;
+}
+
+#indicator-container .btns:hover {
 	opacity: 1;
 }
 
-#board {
+#whiteBoard {
 	width: 100%;
-	height: 100%;
+	height: 90%;
 	display: initial;
 	background-color: white;
 	overflow: hidden;
@@ -182,7 +203,6 @@ body {
 #snackbar {
 	visibility: hidden;
 	min-width: 250px;
-	margin-left: -125px;
 	background-color: #333;
 	color: #fff;
 	text-align: center;
@@ -190,8 +210,8 @@ body {
 	padding: 16px;
 	position: fixed;
 	z-index: 1;
-	left: 50%;
-	bottom: 100px;
+	right: 5px;
+	bottom: 130px;
 	font-size: 17px;
 }
 
@@ -245,54 +265,105 @@ body {
 	}
 }
 
-@media only screen and (min-width: 600px) {
-	/* For tablets: */
-	#videos {
-		width: 100%;
-		height: 70vh;
-	}
-
+@media only screen and (max-width: 600px) {
 	#webcamVideo.active {
 		position: absolute;
-		top: 20px;
-		right: 40px;
-		width: 220px;
-		height: 165px;
+		top: 50px;
+		right: 34px;
+		width: 103px;
+		height: 77px;
 		background: #000000;
 		border-radius: 7px;
-		box-shadow: 1px 1px 8px #000;
+		box-shadow: 1px 1px 8px #d2d2d2;
 	}
 
 	#hideLocalVideoBtn {
-		top: 25px;
-		right: 45px;
-	}
-}
-
-@media only screen and (max-width: 600px) {
-	#videos {
-		width: 100%;
-		height: 60vh;
+		top: 52px;
+		right: 37px;
 	}
 
-	#webcamVideo.active {
+	#indicator-container {
 		position: absolute;
 		top: 15px;
-		right: 15px;
-		width: 100px;
-		height: 80px;
+		left: 85px;
+		align-items: left;
+		text-align: left;
+		display: none;
+	}
+
+	#indicator-container .btns {
+		opacity: 1;
+	}
+
+	.operation-btn {
+		padding: 10px;
+		width: 40px;
+		height: 40px;
+		border-radius: 50px;
+		border: none;
+		color: #fff;
+		background: #4d4c4c;
+		font-size: 15px;
+		margin-left: 5px;
+		margin-right: 5px;
+		outline: none;
+		border: none;
+	}
+
+	#hangupButton {
+		padding: 10px;
+		width: 40px;
+		height: 40px;
+		font-size: 15px;
+	}
+
+	#joinBtn {
+		height: 40px;
+		background: #34c234;
+		padding: 10px 20px;
+		border-radius: 50px;
+		color: #fff;
+		font-size: 15px;
+		font-weight: 700;
+		border: none;
+		outline: none;
+	}
+
+	#videos.active #btn-video-call-container {
+		display: block;
+	}
+
+	#videos:hover.active #btn-video-call-container {
+		display: block;
+	}
+}
+
+@media (min-width: 600px) and (max-width: 768px) {
+	#webcamVideo.active {
+		position: absolute;
+		top: 17px;
+		right: 13px;
+		width: 160px;
+		height: 122px;
 		background: #000000;
 		border-radius: 7px;
 		box-shadow: 1px 1px 8px #000;
 	}
 
-	#hideLocalVideoBtn {
-		top: 20px;
-		right: 20px;
+	#indicator-container .btns {
+		opacity: 1;
+	}
+
+	#videos.active #btn-video-call-container {
+		display: block;
+	}
+
+	#videos:hover.active #btn-video-call-container {
+		display: block;
 	}
 }
 
-@media only screen and (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 992px) {
 	#videos {
 		width: 100%;
 		height: 100vh;
@@ -302,11 +373,11 @@ body {
 		position: absolute;
 		top: 15px;
 		right: 40px;
-		width: 250px;
-		height: 188px;
+		width: 160px;
+		height: 118px;
 		background: #000000;
 		border-radius: 7px;
-		box-shadow: 1px 1px 8px #000;
+		box-shadow: 1px 1px 8px #ececec;
 	}
 
 	#hideLocalVideoBtn {
@@ -314,12 +385,6 @@ body {
 		z-index: 1000;
 		top: 20px;
 		right: 45px;
-		border: none;
-		border-radius: 5px;
-		outline: none;
-		background-color: black;
-		color: white;
-		font-size: 15px;
-		opacity: 0.6;
+		opacity: 1;
 	}
 }
