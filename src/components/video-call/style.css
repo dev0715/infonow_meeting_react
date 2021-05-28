@@ -74,6 +74,14 @@ body {
 	background: #84a184;
 }
 
+.not-calling {
+	position: fixed;
+	width: 200px;
+	height: 56px;
+	left: calc(50% - 85px);
+	top: calc(50% - 28px);
+}
+
 #hangupButton {
 	padding: 10px;
 	width: 50px;
@@ -146,6 +154,16 @@ body {
 	background: #6e6d6d !important;
 }
 
+.operation-btn:disabled {
+	color: #908e8e !important;
+	background: #474747 !important;
+}
+
+.operation-btn:disabled:hover {
+	color: #908e8e !important;
+	background: #474747 !important;
+}
+
 .operation-btn:focus {
 	outline: none !important;
 	border: none !important;
@@ -154,14 +172,12 @@ body {
 #indicator-container {
 	position: absolute;
 	top: 30px;
-	left: 110px;
+	left: calc(50% - 125px);
 	align-items: center;
 	text-align: center;
-	width: 90vw;
-}
-
-#indicator-container .btns {
-	opacity: 0.5;
+	width: 250px;
+	opacity: 0.6;
+	pointer-events: none;
 }
 
 #indicator-container .btns span {
@@ -272,6 +288,7 @@ body {
 		background: #000000;
 		border-radius: 7px;
 		box-shadow: 1px 1px 8px #d2d2d2;
+		opacity: 1;
 	}
 
 	#hideLocalVideoBtn {
@@ -281,15 +298,25 @@ body {
 
 	#indicator-container {
 		position: absolute;
-		top: 15px;
-		left: 85px;
+		top: 16px;
+		left: 95px;
 		align-items: left;
 		text-align: left;
-		display: none;
 	}
 
-	#indicator-container .btns {
-		opacity: 1;
+	#indicator-container .btns span {
+		background-color: rgb(83, 82, 82);
+		color: white;
+		padding: 8px 12px;
+		border-radius: 50px;
+	}
+
+	#indicator-container .btns .indicator {
+		padding-top: 2px;
+	}
+
+	#indicator-container .btns .indicator span {
+		box-shadow: 1px 1px 6px #d2d2d2;
 	}
 
 	.operation-btn {

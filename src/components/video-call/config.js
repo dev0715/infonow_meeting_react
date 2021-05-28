@@ -24,11 +24,15 @@ export const VideoSharingConfig = {
             min: 480,
             max: 768,
         },
-    },
+    }
+};
+
+export const AudioSharingConfig = {
+
     audio: {
         echoCancellation: true,
         noiseSuppression: true,
-        sampleRate: 44100,
+        sampleRate: 8,
     },
 };
 
@@ -37,10 +41,5 @@ export const ScreenSharingConfig = {
     video: {
         cursor: "always" | "motion" | "never",
         displaySurface: "application" | "browser" | "monitor" | "window",
-    },
-    audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: 44100,
-    },
+    }
 };

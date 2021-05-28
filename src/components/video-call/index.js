@@ -7,53 +7,30 @@ import { IOEvents } from "./events"
 import { servers, VideoSharingConfig, ScreenSharingConfig, IOConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
-
-
-
-// let videoContainer = null;
-
-// let webcamVideoContainer = null;
-// let webcamVideo = null;
-// let remoteVideo = null;
-// let joinBtn = null;
-// let hangupButton = null;
-// let muteAudioBtn = null;
-// let muteVideoBtn = null;
-// let hideLocalVideoBtn = null;
-// let showLocalVideoBtn = null;
-// let screenShareBtn = null;
-// let whiteBoard = null;
-// let boardBtn = null;
-// let isBoardVisible = false;
-// let isRemoteVideoMuted = false;
-
-// let indicatorContainer = null;
-// let userAudioMuteIndicator = null;
-// let userVideoMuteIndicator = null;
-// let userScreenSharingMuteIndicator = null;
-
-// let callBtnContainer = null;
+import { removeAllAudioTracks, removeAllVideoTracks, setNewAudioTrack, setNewVideoTrack } from './stream';
 
 
 // Global State
-let pc = null;
+/**@type {RTCPeerConnection} */
+let peerConnection = null;
+
+/**@type {MediaStream} */
 let localStream = null;
+
+/**@type {MediaStream} */
 let remoteStream = null;
-let toggleStreamObj = null;
+
+let isLocalScreenSharingFlag = false
 
 var candidates = [];
-
-// let isJoined = false;
-// let isScreenShared = false;
-
 let socket;
 
-// let user = {};
+
 
 export const VideoCall = () => {
 
-
     const [isAuthorized, setAuthorized] = useState(false);
+    const [isFirstAttempt, setFirstAttempt] = useState(true);
 
     const [isJoined, setJoined] = useState(false);
     const [isCalling, setCalling] = useState(false);
@@ -61,12 +38,13 @@ export const VideoCall = () => {
 
     const [isRemoteMicMute, setRemoteMicMute] = useState(false);
     const [isRemoteVideoMute, setRemoteVideoMute] = useState(false);
-    const [isRemoteScreenSharing, setRemoteScreenSharing] = useState(false);
+    const [isRemoteScreenSharingEnabled, setRemoteScreenSharingEnabled] = useState(false);
     const [isRemoteBoardOpen, setRemoteBoardOpen] = useState(false);
 
     const [isLocalAudioSharing, setLocalAudioSharing] = useState(true);
     const [isLocalVideoSharing, setLocalVideoSharing] = useState(true);
     const [isLocalScreenSharing, setLocalScreenSharing] = useState(false);
+
     const [isLocalBoardOpen, setLocalBoardOpen] = useState(false);
     const [boardUrl, setBoardUrl] = useState(null);
 
@@ -75,12 +53,8 @@ export const VideoCall = () => {
 
     const [isLocalVideoHidden, setLocalVideoHidden] = useState(false);
 
-
-
-
     const [user, setUser] = useState({});
     const [remoteUser, setRemoteUser] = useState({});
-
 
     const { token, meetingId, lang } = useParams();
 
@@ -101,11 +75,6 @@ export const VideoCall = () => {
             })
             console.log(IOEvents.CONNECT)
             socket.emit(IOEvents.AUTHORIZATION, { authorization: decodeURIComponent(token) })
-        });
-
-        socket.on(IOEvents.END_CALL, function () {
-            console.log(IOEvents.END_CALL)
-            endVideoCall()
         });
 
         socket.on(IOEvents.AUTHORIZATION, function (res) {
@@ -129,16 +98,26 @@ export const VideoCall = () => {
         socket.on(IOEvents.MEETING_NOT_ACTIVE, res => endCallCallback(IOEvents.MEETING_NOT_ACTIVE, res));
         socket.on(IOEvents.ROOM_NOT_FOUND, res => endCallCallback(IOEvents.ROOM_NOT_FOUND, res));
 
+        socket.on(IOEvents.CREATE_ROOM, () => {
+            console.log(IOEvents.CREATE_ROOM)
+            if (isFirstAttempt) {
+                setFirstAttempt(false)
+                peerConnection.close()
+                setTimeout(() => {
+                    startVideoCall()
+                }, 200);
+            } else {
+                toast("Failed to connect to peer, try again")
+                endVideoCall()
+            }
+        })
+
         socket.on(IOEvents.ROOM_EXIST, function () {
-
             console.log(IOEvents.ROOM_EXIST)
-
             closeLocalStream()
-            pc.close()
-
+            peerConnection.close()
             setTimeout(() => {
-
-                initVideoState()
+                initPeerConnection()
                 candidates = []
                 setupIceEventBeforeStartCall()
                 joinRoom()
@@ -146,15 +125,17 @@ export const VideoCall = () => {
 
         });
 
-
-        socket.on(IOEvents.CREATE_ICE_EVENT_DATA, (data) => {
-            console.log(IOEvents.CREATE_ICE_EVENT_DATA, data)
-            if (data) {
-                console.log(IOEvents.CREATE_ICE_EVENT_DATA);
-                const candidate = new RTCIceCandidate(data);
-                pc.addIceCandidate(candidate);
+        socket.on(IOEvents.CREATE_ICE_EVENT_DATA, (res) => {
+            console.log(IOEvents.CREATE_ICE_EVENT_DATA, res)
+            try {
+                if (res.data) {
+                    console.log(IOEvents.CREATE_ICE_EVENT_DATA);
+                    const candidate = new RTCIceCandidate(res.data);
+                    peerConnection.addIceCandidate(candidate);
+                }
+            } catch (error) {
+                console.log("CREATE_ICE_EVENT_DATA_ERROR", error)
             }
-
         });
 
         socket.on(IOEvents.RECEIVE_ANSWER, (res) => {
@@ -162,37 +143,36 @@ export const VideoCall = () => {
             if (res.user) {
                 setRemoteUser(res.user)
             }
-
-            if (!pc.currentRemoteDescription && res.answer) {
+            if (!peerConnection.currentRemoteDescription && res.answer) {
                 console.log(IOEvents.RECEIVE_ANSWER);
                 const answerDescription = new RTCSessionDescription(res.answer);
-                pc.setRemoteDescription(answerDescription);
+                peerConnection.setRemoteDescription(answerDescription);
                 socket.emit(IOEvents.START_CALL, {
                     type: IOEvents.RECEIVE_ANSWER
                 });
             }
-
         });
 
-        socket.on(IOEvents.ROOM_JOIN, async (data) => {
-            console.log(IOEvents.ROOM_JOIN, data)
-            if (data) {
-                await pc.setRemoteDescription(new RTCSessionDescription(data));
-
-                const answerDescription = await pc.createAnswer();
-                await pc.setLocalDescription(answerDescription);
-
-                //----------------------------------------//
-                //---------------SEND ANSWER-------------//
-                //--------------------------------------//
-
-                socket.emit(IOEvents.ANSWER_CALL, {
-                    type: IOEvents.ANSWER_CALL,
-                    data: {
-                        type: answerDescription.type,
-                        sdp: answerDescription.sdp,
-                    }
-                });
+        socket.on(IOEvents.ROOM_JOIN, async (res) => {
+            console.log(IOEvents.ROOM_JOIN, res)
+            try {
+                if (res.data) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                    const answerDescription = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answerDescription);
+                    //----------------------------------------//
+                    //---------------SEND ANSWER-------------//
+                    //--------------------------------------//
+                    socket.emit(IOEvents.ANSWER_CALL, {
+                        type: IOEvents.ANSWER_CALL,
+                        data: {
+                            type: answerDescription.type,
+                            sdp: answerDescription.sdp,
+                        }
+                    });
+                }
+            } catch (error) {
+                console.log("ROOM_JOIN_ERROR", error)
             }
         });
 
@@ -218,6 +198,12 @@ export const VideoCall = () => {
             setCallStarted(true)
         });
 
+        socket.on(IOEvents.END_CALL, function () {
+            console.log(IOEvents.END_CALL)
+            closeConnection()
+            resetAllStates()
+        });
+
         socket.on(IOEvents.MUTE_AUDIO, function () {
             console.log(IOEvents.MUTE_AUDIO)
             setRemoteMicMute(true)
@@ -231,21 +217,26 @@ export const VideoCall = () => {
         socket.on(IOEvents.MUTE_VIDEO, function () {
             console.log(IOEvents.MUTE_VIDEO)
             setRemoteVideoMute(true)
+            remoteVideoRef.current.srcObject = null
         });
 
         socket.on(IOEvents.UNMUTE_VIDEO, function () {
             console.log(IOEvents.UNMUTE_VIDEO)
+            remoteVideoRef.current.srcObject = remoteStream
             setRemoteVideoMute(false)
+
         });
 
-        socket.on(IOEvents.SCREEN_SHARING, function () {
-            console.log(IOEvents.SCREEN_SHARING)
-            setRemoteScreenSharing(true)
+        socket.on(IOEvents.SCREEN_SHARING_ENABLED, function () {
+            console.log(IOEvents.SCREEN_SHARING_ENABLED)
+            remoteVideoRef.current.srcObject = remoteStream;
+            setRemoteScreenSharingEnabled(true)
         });
 
-        socket.on(IOEvents.VIDEO_SHARING, function () {
-            console.log(IOEvents.VIDEO_SHARING)
-            setRemoteScreenSharing(false)
+        socket.on(IOEvents.SCREEN_SHARING_DISABLED, function () {
+            console.log(IOEvents.SCREEN_SHARING_DISABLED)
+            remoteVideoRef.current.srcObject = null;
+            setRemoteScreenSharingEnabled(false)
         });
 
         socket.on(IOEvents.OPEN_BOARD, function () {
@@ -257,9 +248,7 @@ export const VideoCall = () => {
             console.log(IOEvents.CLOSE_BOARD)
             setRemoteBoardOpen(false)
         });
-
     }
-
 
     function init() {
 
@@ -267,10 +256,7 @@ export const VideoCall = () => {
 
     }
 
-    useEffect(() => {
-        init()
-    }, [])
-
+    useEffect(init, [])
 
     function hideLocalVideo() {
         setLocalVideoHidden(true)
@@ -280,29 +266,32 @@ export const VideoCall = () => {
         setLocalVideoHidden(false)
     }
 
-    function initVideoState() {
-        // Global State
-        pc = new RTCPeerConnection(servers);
-        localStream = null;
-        remoteStream = null;
-        toggleStreamObj = null;
+    function initPeerConnection() {
+        try {
+            // Global State
+            peerConnection = new RTCPeerConnection(servers);
+            localStream = null;
+            remoteStream = null;
+        } catch (error) {
+            console.log("INIT_PEER_CONNECTION_ERROR", error)
+        }
     }
 
     function setupIceEventOnStartCall() {
 
-        console.log("setupIceEventOnStartCall");
+        console.log("SETUP_ICE_EVENT_ON_START_CALL");
 
         candidates.forEach(c => {
-            console.log("ice array event")
+            console.log("ICE_ARRAY_EVENT")
             socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
                 type: IOEvents.CREATE_ICE_EVENT_DATA,
                 data: c
             });
         });
 
-        pc.onicecandidate = (event) => {
+        peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log("local ice event",)
+                console.log("LOCAL_ICE_EVENT",)
                 socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
                     type: IOEvents.CREATE_ICE_EVENT_DATA,
                     data: event.candidate.toJSON()
@@ -313,10 +302,10 @@ export const VideoCall = () => {
     }
 
     function setupIceEventBeforeStartCall() {
-
-        pc.onicecandidate = (event) => {
+        console.log("SETUP_ICE_EVENT_BEFORE_START_CALL");
+        peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log("ice")
+                console.log("ICE_EVENT_BEFORE_START_CALL")
                 candidates.push(event.candidate.toJSON())
             }
         };
@@ -325,61 +314,75 @@ export const VideoCall = () => {
 
     function closeRemoteStream() {
         try {
-            remoteStream.getAudioTracks()[0].stop();
-            remoteStream.getVideoTracks()[0].stop();
-            remoteVideoRef.current.srcObject = null
+            console.log("CLOSING_REMOTE_STREAM")
+            if (remoteStream) {
+                removeAllVideoTracks(peerConnection, remoteStream)
+                removeAllAudioTracks(peerConnection, remoteStream)
+                remoteVideoRef.current.srcObject = null
+            }
         } catch (error) {
-            console.log("CLOSING REMOTE STREAM")
+            console.warn("CLOSING_REMOTE_STREAM_ERROR", error)
         }
-
     }
 
     function closeLocalStream() {
         try {
-            localStream.getAudioTracks()[0].stop();
-            localStream.getVideoTracks()[0].stop();
-            webcamVideoRef.current.srcObject = null
-            if (toggleStreamObj) {
-                toggleStreamObj.getAudioTracks()[0].stop();
-                toggleStreamObj.getVideoTracks()[0].stop();
+            console.log("CLOSING_LOCAL_STREAM")
+            if (localStream) {
+                removeAllVideoTracks(peerConnection, localStream)
+                removeAllAudioTracks(peerConnection, localStream)
+                webcamVideoRef.current.srcObject = null
             }
-
-        } catch (error) {
-            console.log("CLOSING LOCAL STREAM")
         }
-
+        catch (error) {
+            console.warn("CLOSING_LOCAL_STREAM_ERROR", error)
+        }
     }
 
     function closeConnection() {
-
         closeLocalStream()
         closeRemoteStream();
-        if (pc) {
-            pc.close();
+        peerConnection.close();
+    }
+
+    async function getNewLocalStream(isScreen = false) {
+        let stream;
+        if (isScreen) {
+            stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
         }
+        else {
+            stream = await navigator.mediaDevices.getUserMedia(VideoSharingConfig)
+        }
+        return stream;
     }
-    //DONE
+
+
     async function initCamera() {
-        //
-        localStream = await navigator.mediaDevices.getUserMedia(VideoSharingConfig);
-        remoteStream = new MediaStream();
 
-        // Push tracks from local stream to peer connection
-        localStream.getTracks().forEach((track) => {
-            pc.addTrack(track, localStream);
-        });
+        try {
+            localStream = await getNewLocalStream();
+            remoteStream = new MediaStream();
 
-        // Pull tracks from remote stream, add to video stream
-        pc.ontrack = (event) => {
-            event.streams[0].getTracks().forEach((track) => {
-                remoteStream.addTrack(track);
+            // Push tracks from local stream to peer connection
+            localStream.getTracks().forEach((track) => {
+                peerConnection.addTrack(track, localStream);
             });
-        };
 
-        webcamVideoRef.current.srcObject = localStream
-        remoteVideoRef.current.srcObject = remoteStream
+            // Pull tracks from remote stream, add to video stream
+            peerConnection.ontrack = (event) => {
+
+                event.streams[0].getTracks().forEach((track) => {
+                    remoteStream.addTrack(track);
+                });
+            };
+
+            webcamVideoRef.current.srcObject = localStream
+            remoteVideoRef.current.srcObject = remoteStream
+        } catch (error) {
+            console.log("INIT_CAMERA_ERROR", error)
+        }
+
     }
-
 
     function toggleBoard() {
         socket.emit(isLocalBoardOpen ? IOEvents.CLOSE_BOARD : IOEvents.OPEN_BOARD)
@@ -394,20 +397,22 @@ export const VideoCall = () => {
 
         setTimeout(async () => {
 
-            const offerDescription = await pc.createOffer();
-            await pc.setLocalDescription(offerDescription);
+            try {
+                const offerDescription = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offerDescription);
 
-            socket.emit(IOEvents.CREATE_ROOM, {
-                type: IOEvents.CREATE_ROOM,
-                meetingId: meetingId,
-                data: {
-                    sdp: offerDescription.sdp,
-                    type: offerDescription.type,
-                }
-            });
-
-            setupIceEventBeforeStartCall()
-
+                socket.emit(IOEvents.CREATE_ROOM, {
+                    type: IOEvents.CREATE_ROOM,
+                    meetingId: meetingId,
+                    data: {
+                        sdp: offerDescription.sdp,
+                        type: offerDescription.type,
+                    }
+                });
+                setupIceEventBeforeStartCall()
+            } catch (error) {
+                console.log("CREATE_ROOM_FUNCTION_ERROR", error)
+            }
         }, 1000);
     }
 
@@ -424,50 +429,89 @@ export const VideoCall = () => {
         }, 1000);
     }
 
-    function toggleMicrophone() {
-
-        localStream.getAudioTracks()[0].enabled = !(localStream.getAudioTracks()[0].enabled);
-        socket.emit(localStream.getAudioTracks()[0].enabled ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
-        setLocalAudioSharing(localStream.getAudioTracks()[0].enabled)
+    async function toggleMicrophone() {
+        if (isLocalAudioSharing) {
+            removeAllAudioTracks(peerConnection, localStream);
+        }
+        else {
+            await setNewAudioTrack(peerConnection, localStream)
+        }
+        socket.emit(isLocalAudioSharing ? IOEvents.MUTE_AUDIO : IOEvents.UNMUTE_AUDIO)
+        setLocalAudioSharing(!isLocalAudioSharing)
     }
 
-    function toggleVideo() {
+    useEffect(() => {
+        console.log("IS_LOCAL_SCREEN_SHARING", isLocalScreenSharing, isLocalScreenSharingFlag)
+    }, [isLocalScreenSharing])
 
-        localStream.getVideoTracks()[0].enabled = !(localStream.getVideoTracks()[0].enabled);
-        socket.emit(localStream.getVideoTracks()[0].enabled ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
-        setLocalVideoSharing(localStream.getVideoTracks()[0].enabled)
 
+    async function toggleVideo() {
+
+        stopScreenStream()
+
+        if (isLocalVideoSharing) {
+            removeAllVideoTracks(peerConnection, localStream);
+            webcamVideoRef.current.srcObject = null
+        }
+        else {
+            await setNewVideoTrack(peerConnection, localStream, 'webcam')
+            webcamVideoRef.current.srcObject = localStream
+        }
+
+        socket.emit(isLocalVideoSharing ? IOEvents.MUTE_VIDEO : IOEvents.UNMUTE_VIDEO)
+        setLocalVideoSharing(!isLocalVideoSharing)
+    }
+
+    async function stopWebcamStream() {
+        if (isLocalVideoSharing) {
+            removeAllVideoTracks(peerConnection, localStream);
+            webcamVideoRef.current.srcObject = null
+            socket.emit(IOEvents.MUTE_VIDEO)
+            setLocalVideoSharing(false)
+        }
+    }
+
+    async function startWebcamStream() {
+        await setNewVideoTrack(peerConnection, localStream, 'webcam')
+        webcamVideoRef.current.srcObject = localStream
+        socket.emit(IOEvents.UNMUTE_VIDEO)
+        setLocalVideoSharing(true)
+    }
+
+    async function stopScreenStream() {
+        removeAllVideoTracks(peerConnection, localStream);
+        webcamVideoRef.current.srcObject = null
+        isLocalScreenSharingFlag = false
+        socket.emit(IOEvents.SCREEN_SHARING_DISABLED)
+        setLocalScreenSharing(isLocalScreenSharingFlag)
     }
 
     async function toggleScreenShare() {
-
         try {
-            console.log("isLocalScreenSharing", isLocalScreenSharing)
-            if (isLocalScreenSharing) {
-                toggleStreamObj = await navigator.mediaDevices.getUserMedia(VideoSharingConfig)
-            } else {
-                toggleStreamObj = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
+
+            stopWebcamStream()
+
+            if (isLocalScreenSharingFlag) {
+                removeAllVideoTracks(peerConnection, localStream);
+                webcamVideoRef.current.srcObject = null
+            }
+            else {
+                let success = await setNewVideoTrack(peerConnection, localStream, 'screen')
+                if (!success) {
+                    webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
+                    throw "Screen Share Cancelled."
+                }
+                webcamVideoRef.current.srcObject = localStream
             }
 
-            let videoTrack = toggleStreamObj.getVideoTracks()[0];
-
-            let sender = pc.getSenders().find(function (s) {
-                return s.track.kind == videoTrack.kind;
-            });
-            sender.replaceTrack(videoTrack);
-            videoTrack.onended = () => {
-                toggleScreenShare()
-            }
-            webcamVideoRef.current.srcObject = toggleStreamObj
-
-            socket.emit(isLocalScreenSharing ? IOEvents.VIDEO_SHARING : IOEvents.SCREEN_SHARING)
-
-            setLocalScreenSharing(!isLocalScreenSharing)
+            isLocalScreenSharingFlag = !isLocalScreenSharingFlag
+            socket.emit(isLocalScreenSharingFlag ? IOEvents.SCREEN_SHARING_ENABLED : IOEvents.SCREEN_SHARING_DISABLED)
+            setLocalScreenSharing(isLocalScreenSharingFlag)
 
         } catch (error) {
             console.log("Screen Toggle Error", error)
+            startWebcamStream()
         }
-
     }
 
     function toast(text) {
@@ -482,31 +526,32 @@ export const VideoCall = () => {
 
     async function startVideoCall() {
         setCalling(true)
-        initVideoState()
+        initPeerConnection()
         setTimeout(createRoom, 1000);
     }
 
     function endVideoCall() {
-        if (isJoined) {
-            socket.emit(IOEvents.END_CALL);
-        }
+        socket.emit(IOEvents.END_CALL);
         closeConnection()
         resetAllStates()
     }
 
     function resetAllStates() {
 
+        setFirstAttempt(true)
         setJoined(false)
         setCalling(false)
         setCallStarted(false)
         setRemoteMicMute(false)
         setRemoteVideoMute(false)
-        setRemoteScreenSharing(false)
+        setRemoteScreenSharingEnabled(false)
         setRemoteBoardOpen(false)
 
         setLocalAudioSharing(true)
         setLocalVideoSharing(true)
         setLocalScreenSharing(false)
+        isLocalScreenSharingFlag = false
+
         setLocalBoardOpen(false)
         setBoardUrl(null)
         setLocalVideoHidden(false)
@@ -515,40 +560,67 @@ export const VideoCall = () => {
         setRemoteUser({})
     }
 
+    function isWebCamViewActive() {
+        let active = false
+        if (isCallStarted) active = true
+        if (isRemoteVideoMute) active = false
+        if (isRemoteScreenSharingEnabled) active = true
+        if (isLocalBoardOpen) active = true
+        return active
+    }
+
+    function isRemoteViewActive() {
+        let active = false
+        if (isCallStarted) active = true
+        if (isRemoteVideoMute) active = false
+        if (isRemoteScreenSharingEnabled) active = true
+        if (isLocalBoardOpen) active = false
+        return active
+    }
 
     return (
         <Row>
             <Col lg={12} id="videos" className={isCallStarted ? "active" : ""}>
-                <span>
+                <span
+                    style={{
+                        display: (isLocalVideoSharing || isLocalScreenSharing) && !isLocalVideoHidden ? "initial" : "none",
+                    }}
+                >
                     <video id="webcamVideo"
                         ref={webcamVideoRef}
-                        className={isCallStarted ? (isRemoteVideoMute ? "" : "active") : ""}
-                        muted="muted" autoPlay={true}
+                        className={isWebCamViewActive() ? "active" : ""}
+                        muted="muted"
+                        autoPlay={true}
                         playsInline
                         style={{
                             objectFit: 'contain',
-                            display: isLocalVideoHidden ? 'none' : 'initial',
                         }}
                     ></video>
                     {
-                        isCallStarted && !isLocalVideoHidden && isLocalVideoSharing && !isRemoteVideoMute &&
+                        isCallStarted &&
                         <button id="hideLocalVideoBtn" onClick={hideLocalVideo}>
                             <i className="la la-close"></i>
                         </button>
                     }
                 </span>
-
                 <span>
                     <video id="remoteVideo"
                         ref={remoteVideoRef}
-                        className={isCallStarted ? (isRemoteVideoMute ? "" : "active") : ""}
-                        autoPlay={true} playsInline
-                        style={{ objectFit: 'contain', display: isLocalBoardOpen ? 'none' : 'initial' }}
+                        className={isRemoteViewActive() ? "active" : ""}
+                        autoPlay={true}
+                        playsInline
+                        style={{
+                            objectFit: 'contain'
+                        }}
                     ></video>
                 </span>
                 {
                     isLocalBoardOpen &&
-                    <iframe id="whiteBoard" src={boardUrl} >
+                    <iframe
+                        title="WhiteBoard"
+                        id="whiteBoard"
+                        src={boardUrl}
+                    >
                     </iframe>
                 }
                 {
@@ -559,35 +631,35 @@ export const VideoCall = () => {
                                 {
                                     Object.keys(remoteUser).length > 0 &&
                                     <>
-                                        <span >
+                                        <span>
                                             <i className="la la-user"></i>
-                                &nbsp;
-                                {remoteUser.name}
+                                        &nbsp;
+                                        {remoteUser.name}
                                         </span>
                                     </>
                                 }
                                 <div className="indicator">
                                     {
                                         isRemoteMicMute &&
-                                        <span id="user-audio-icon" >
+                                        <span>
                                             <i className="la la-microphone-slash "></i>
                                         </span>
                                     }
                                     {
                                         isRemoteVideoMute &&
-                                        <span id="user-video-icon"  >
+                                        <span>
                                             <i className="las la-video-slash "></i>
                                         </span>
                                     }
                                     {
-                                        isRemoteScreenSharing &&
-                                        <span id="user-screen-sharing-icon" >
+                                        isRemoteScreenSharingEnabled &&
+                                        <span>
                                             <i className="las la-desktop "></i>
                                         </span>
                                     }
                                     {
                                         isRemoteBoardOpen &&
-                                        <span style={{ display: 'initial' }}>
+                                        <span>
                                             <i className="las la-pencil-alt"></i>
                                         </span>
                                     }
@@ -599,7 +671,11 @@ export const VideoCall = () => {
                 <div id="btn-video-call-container">
                     {
                         !isCallStarted &&
-                        <button id="joinBtn" disabled={isCalling || !isAuthorized} onClick={startVideoCall}>
+                        <button id="joinBtn"
+                            disabled={isCalling || !isAuthorized}
+                            onClick={startVideoCall}
+                            className={!isCalling ? 'not-calling' : ''}
+                        >
                             {
                                 !isCalling ? "Join Meeting" : (isJoined ? "Waiting for peer to Join" : "Joining")
                             }
@@ -607,29 +683,48 @@ export const VideoCall = () => {
                     }
                     {
                         (isCalling || isCallStarted) &&
-                        <button id="hangupButton" onClick={endVideoCall}>
+                        <button
+                            id="hangupButton"
+                            onClick={endVideoCall}
+                        >
                             <i className="la la-phone"></i>
                         </button>
                     }
                     {
                         isCallStarted &&
                         <>
-                            <button className="operation-btn" onClick={toggleMicrophone} >
+                            <button
+                                className="operation-btn"
+                                onClick={toggleMicrophone}
+                            >
                                 <i className={isLocalAudioSharing ? "la la-microphone" : "las la-microphone-slash"} ></i>
                             </button>
-                            <button className="operation-btn" onClick={toggleVideo} >
+                            <button
+                                className="operation-btn"
+                                onClick={toggleVideo}
+                                disabled={isLocalScreenSharing}
+                            >
                                 <i className={isLocalVideoSharing ? "la la-video" : "las la-video-slash"} ></i>
                             </button>
-                            <button className="operation-btn" onClick={toggleScreenShare} >
-                                <i className={isLocalScreenSharing ? "las la-desktop" : "las la-camera"} ></i>
+                            <button
+                                className="operation-btn"
+                                onClick={toggleScreenShare}
+                            >
+                                <i className={isLocalScreenSharing ? "las la-camera" : "las la-desktop"} ></i>
                             </button>
                             {
                                 isLocalVideoHidden &&
-                                <button className="operation-btn" onClick={showLocalVideo} >
+                                <button
+                                    className="operation-btn"
+                                    onClick={showLocalVideo}
+                                >
                                     <i className="lab la-creative-commons-by"></i>
                                 </button>
                             }
-                            <button className="operation-btn" id="boardBtn" onClick={toggleBoard} >
+                            <button
+                                className="operation-btn"
+                                onClick={toggleBoard}
+                            >
                                 <i className={isLocalBoardOpen ? "las la-pencil-ruler" : "las la-pencil-alt"} ></i>
                             </button>
                         </>
