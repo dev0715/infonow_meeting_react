@@ -47,18 +47,16 @@ export async function getNewAudioTrack() {
  * @param {MediaStream} stream
  * @param {'webcam'|'screen'} type
  */
-export async function setNewVideoTrack(peerConnection, stream, type) {
+export async function setNewVideoTrack(peerConnection, stream, type, callback) {
     try {
         stream.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
         let getNewTrack = type === 'screen' ? getNewScreenTrack() : getNewWebcamTrack();
         let videoTrack = await getNewTrack;
-        stream.addTrack(videoTrack);
-        const senders = peerConnection.getSenders();
-        senders.find(s => s.track.kind === videoTrack.kind).replaceTrack(videoTrack);
-        return true;
+        videoTrack.onended = callback;
+        setNewTrack(peerConnection, stream, videoTrack);
+        return null;
     } catch (error) {
-        console.log(error);
-        return false;
+        return error;
     }
 }
 
@@ -72,14 +70,29 @@ export async function setNewAudioTrack(peerConnection, stream) {
     try {
         stream.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
         let audioTrack = await getNewAudioTrack();
-        stream.addTrack(audioTrack);
-        const senders = peerConnection.getSenders();
-        senders.find(s => s.track.kind === audioTrack.kind).replaceTrack(audioTrack);
+        setNewTrack(peerConnection, stream, audioTrack);
+        return null
     } catch (error) {
         return error
     }
 
 }
+
+async function setNewTrack(peerConnection, stream, track) {
+    stream.addTrack(track);
+    if (peerConnection) {
+        const senders = peerConnection.getSenders();
+        let t = senders.filter(x => x.track).find(s => s.track.kind === track.kind);
+        if (t) {
+            console.log(`Replacing ${track.kind} track to Sender`);
+            t.replaceTrack(track)
+        } else {
+            console.log(`Adding new ${track.kind} track to Peer Connection`);
+            peerConnection.addTrack(track, stream);
+        }
+    }
+}
+
 
 /**
  * 
@@ -109,11 +122,15 @@ export function removeAllAudioTracks(peerConnection, stream) {
 function removeAllTracks(peerConnection, stream, kind) {
     stream.getTracks().filter(y => y.kind === kind)
         .forEach(t => {
+
             // Stop PeerConnectionStream
-            peerConnection
-                .getSenders()
-                .filter(x => x.track.kind === t.kind)
-                .forEach(x => x.track.stop())
+            if (peerConnection) {
+                peerConnection
+                    .getSenders()
+                    .filter(x => x.track)
+                    .filter(x => x.track.kind === t.kind)
+                    .forEach(x => x.track.stop())
+            }
 
             // Stop and Remove Stream
             t.stop();

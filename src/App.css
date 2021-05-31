@@ -1,3 +1,13 @@
 #root {
-	overflow: hidden;
+	font-family: "Syne Mono", monospace;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	min-width: 100vw;
+	min-height: 100vh;
+	text-align: center;
+	background-image: linear-gradient(116.82deg, #c600ff 0%, #7400ff 100%);
+	color: #2c3e50;
+	margin: 0px 0px;
+	overflow-x: hidden;
+	overflow-y: auto;
 }

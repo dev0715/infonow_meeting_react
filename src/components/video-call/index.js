@@ -1,14 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import io from "socket.io-client"
-import { Row, Col } from 'reactstrap'
-
 import './style.css';
 import { IOEvents } from "./events"
-import { servers, VideoSharingConfig, ScreenSharingConfig, IOConfig } from './config';
+import { servers, IOConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
 import { removeAllAudioTracks, removeAllVideoTracks, setNewAudioTrack, setNewVideoTrack } from './stream';
+import { getNameInitials } from './utils';
 
+const icBrush = require('../../images/brush.svg').default;
+const icMicSlash = require('../../images/mic-slash.svg').default;
+const icMic = require('../../images/mic.svg').default;
+const icPhoneOff = require('../../images/phone-off.svg').default;
+const icPhoneOn = require('../../images/phone-on.svg').default;
+const icPortrait = require('../../images/portrait.svg').default;
+const icScreenSharingSlash = require('../../images/screensharing-slash.svg').default;
+const icScreenSharing = require('../../images/screensharing.svg').default;
+const icVideoSlash = require('../../images/video-slash.svg').default;
+const icVideo = require('../../images/video.svg').default;
+const icLoader = require('../../images/loader.png').default;
+const icTimes = require('../../images/times.svg').default;
 
 // Global State
 /**@type {RTCPeerConnection} */
@@ -41,8 +52,8 @@ export const VideoCall = () => {
     const [isRemoteScreenSharingEnabled, setRemoteScreenSharingEnabled] = useState(false);
     const [isRemoteBoardOpen, setRemoteBoardOpen] = useState(false);
 
-    const [isLocalAudioSharing, setLocalAudioSharing] = useState(true);
-    const [isLocalVideoSharing, setLocalVideoSharing] = useState(true);
+    const [isLocalAudioSharing, setLocalAudioSharing] = useState(false);
+    const [isLocalVideoSharing, setLocalVideoSharing] = useState(false);
     const [isLocalScreenSharing, setLocalScreenSharing] = useState(false);
 
     const [isLocalBoardOpen, setLocalBoardOpen] = useState(false);
@@ -81,14 +92,42 @@ export const VideoCall = () => {
             console.log(IOEvents.AUTHORIZATION, res)
             //------------static for testing ----------//
             if (res.success) {
-                toast(`Welcome ${res.data.name}, you are successfully authorized`)
                 setAuthorized(true)
                 setUser(res.data);
+                initLocalStream();
             }
             else {
                 setAuthorized(false)
                 setUser({});
                 toast("You are not authorized")
+            }
+        });
+
+        socket.on(IOEvents.NEW_OFFER, async (res) => {
+            console.log(IOEvents.NEW_OFFER, res);
+            if (res.data) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                const answerDescription = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answerDescription);
+                //----------------------------------------//
+                //---------------SEND ANSWER-------------//
+                //--------------------------------------//
+                socket.emit(IOEvents.NEW_ANSWER, {
+                    type: IOEvents.NEW_ANSWER,
+                    data: {
+                        type: answerDescription.type,
+                        sdp: answerDescription.sdp,
+                    }
+                });
+            }
+        });
+
+        socket.on(IOEvents.NEW_ANSWER, res => {
+            console.log(IOEvents.NEW_ANSWER, res);
+            if (res.data) {
+                console.log(IOEvents.NEW_ANSWER);
+                const answerDescription = new RTCSessionDescription(res.data);
+                peerConnection.setRemoteDescription(answerDescription);
             }
         });
 
@@ -114,12 +153,12 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.ROOM_EXIST, function () {
             console.log(IOEvents.ROOM_EXIST)
-            closeLocalStream()
+            // closeLocalStream()
             peerConnection.close()
             setTimeout(() => {
                 initPeerConnection()
-                candidates = []
-                setupIceEventBeforeStartCall()
+                // candidates = []
+                // setupIceEventBeforeStartCall()
                 joinRoom()
             }, 200);
 
@@ -217,25 +256,21 @@ export const VideoCall = () => {
         socket.on(IOEvents.MUTE_VIDEO, function () {
             console.log(IOEvents.MUTE_VIDEO)
             setRemoteVideoMute(true)
-            remoteVideoRef.current.srcObject = null
         });
 
         socket.on(IOEvents.UNMUTE_VIDEO, function () {
             console.log(IOEvents.UNMUTE_VIDEO)
-            remoteVideoRef.current.srcObject = remoteStream
             setRemoteVideoMute(false)
 
         });
 
         socket.on(IOEvents.SCREEN_SHARING_ENABLED, function () {
             console.log(IOEvents.SCREEN_SHARING_ENABLED)
-            remoteVideoRef.current.srcObject = remoteStream;
             setRemoteScreenSharingEnabled(true)
         });
 
         socket.on(IOEvents.SCREEN_SHARING_DISABLED, function () {
             console.log(IOEvents.SCREEN_SHARING_DISABLED)
-            remoteVideoRef.current.srcObject = null;
             setRemoteScreenSharingEnabled(false)
         });
 
@@ -250,10 +285,30 @@ export const VideoCall = () => {
         });
     }
 
+    function endCallOnReload() {
+        console.log("Page Reloading")
+        socket.emit(IOEvents.END_CALL)
+        window.removeEventListener("beforeunload", endCallOnReload);
+    }
+
+    async function createOffer() {
+        if (peerConnection) {
+            const offerDescription = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offerDescription);
+
+            socket.emit(IOEvents.NEW_OFFER, {
+                data: {
+                    sdp: offerDescription.sdp,
+                    type: offerDescription.type,
+                }
+            });
+            console.log("CREATING RE-NEGOTIATION OFFER");
+        }
+    }
+
     function init() {
-
-        initSocket()
-
+        setTimeout(initSocket, 5000);
+        window.addEventListener("beforeunload", endCallOnReload);
     }
 
     useEffect(init, [])
@@ -270,8 +325,24 @@ export const VideoCall = () => {
         try {
             // Global State
             peerConnection = new RTCPeerConnection(servers);
-            localStream = null;
-            remoteStream = null;
+            remoteStream = new MediaStream();
+
+            setupIceEventBeforeStartCall()
+
+            peerConnection.onnegotiationneeded = createOffer;
+            // Push tracks from local stream to peer connection
+            localStream.getTracks().forEach((track) => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // Pull tracks from remote stream, add to video stream
+            peerConnection.ontrack = (event) => {
+                event.streams[0].getTracks().forEach((track) => {
+                    console.log("NEW " + track.kind + " TRACK ADDED TO REMOTE STREAM");
+                    remoteStream.addTrack(track);
+                });
+            };
+            remoteVideoRef.current.srcObject = remoteStream
         } catch (error) {
             console.log("INIT_PEER_CONNECTION_ERROR", error)
         }
@@ -303,6 +374,7 @@ export const VideoCall = () => {
 
     function setupIceEventBeforeStartCall() {
         console.log("SETUP_ICE_EVENT_BEFORE_START_CALL");
+        candidates = []
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 console.log("ICE_EVENT_BEFORE_START_CALL")
@@ -342,61 +414,30 @@ export const VideoCall = () => {
     function closeConnection() {
         closeLocalStream()
         closeRemoteStream();
-        peerConnection.close();
+        if (peerConnection)
+            peerConnection.close();
+
+        window.location.reload();
     }
 
-    async function getNewLocalStream(isScreen = false) {
-        let stream;
-        if (isScreen) {
-            stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
-        }
-        else {
-            stream = await navigator.mediaDevices.getUserMedia(VideoSharingConfig)
-        }
-        return stream;
-    }
-
-
-    async function initCamera() {
-
+    async function initLocalStream() {
         try {
-            localStream = await getNewLocalStream();
-            remoteStream = new MediaStream();
-
-            // Push tracks from local stream to peer connection
-            localStream.getTracks().forEach((track) => {
-                peerConnection.addTrack(track, localStream);
-            });
-
-            // Pull tracks from remote stream, add to video stream
-            peerConnection.ontrack = (event) => {
-
-                event.streams[0].getTracks().forEach((track) => {
-                    remoteStream.addTrack(track);
-                });
-            };
-
+            localStream = new MediaStream();
             webcamVideoRef.current.srcObject = localStream
-            remoteVideoRef.current.srcObject = remoteStream
         } catch (error) {
-            console.log("INIT_CAMERA_ERROR", error)
+            console.log("INIT_LOCAL_STREAM_ERROR", error)
         }
-
     }
 
     function toggleBoard() {
         socket.emit(isLocalBoardOpen ? IOEvents.CLOSE_BOARD : IOEvents.OPEN_BOARD)
         setBoardUrl(isLocalBoardOpen ? null : getWhiteboardUrl(meetingId, user.userId))
-        setLocalBoardOpen(!isLocalBoardOpen)
+        setLocalBoardOpen(isLocalBoardOpen => !isLocalBoardOpen)
 
     }
 
     function createRoom() {
-
-        initCamera()
-
         setTimeout(async () => {
-
             try {
                 const offerDescription = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offerDescription);
@@ -409,7 +450,7 @@ export const VideoCall = () => {
                         type: offerDescription.type,
                     }
                 });
-                setupIceEventBeforeStartCall()
+                // setupIceEventBeforeStartCall()
             } catch (error) {
                 console.log("CREATE_ROOM_FUNCTION_ERROR", error)
             }
@@ -417,9 +458,6 @@ export const VideoCall = () => {
     }
 
     function joinRoom() {
-
-        initCamera()
-
         setTimeout(async () => {
             socket.emit(IOEvents.ROOM_JOIN, {
                 type: IOEvents.ROOM_JOIN,
@@ -429,37 +467,65 @@ export const VideoCall = () => {
         }, 1000);
     }
 
+    function sendInitialEvents() {
+        if (socket && isCallStarted) {
+            console.log(`Local audio==>${isLocalAudioSharing}, Local video==>${isLocalVideoSharing}`)
+            socket.emit(isLocalAudioSharing ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
+            socket.emit(isLocalVideoSharing ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
+        }
+    }
+
+    useEffect(sendInitialEvents, [isCallStarted])
+
     async function toggleMicrophone() {
-        if (isLocalAudioSharing) {
-            removeAllAudioTracks(peerConnection, localStream);
+        try {
+            if (isLocalAudioSharing) {
+                removeAllAudioTracks(peerConnection, localStream);
+            }
+            else {
+                let failed = await setNewAudioTrack(peerConnection, localStream)
+                if (failed) throw failed;
+            }
+            socket.emit(isLocalAudioSharing ? IOEvents.MUTE_AUDIO : IOEvents.UNMUTE_AUDIO)
+            setLocalAudioSharing(isLocalAudioSharing => !isLocalAudioSharing)
+        } catch (error) {
+            console.log(error)
+            toast("MicroPhone permission is not allowed")
         }
-        else {
-            await setNewAudioTrack(peerConnection, localStream)
-        }
-        socket.emit(isLocalAudioSharing ? IOEvents.MUTE_AUDIO : IOEvents.UNMUTE_AUDIO)
-        setLocalAudioSharing(!isLocalAudioSharing)
     }
 
     useEffect(() => {
         console.log("IS_LOCAL_SCREEN_SHARING", isLocalScreenSharing, isLocalScreenSharingFlag)
     }, [isLocalScreenSharing])
 
+    useEffect(() => {
+        console.log("IS_LOCAL_VIDEO_SHARING", isLocalVideoSharing)
+    }, [isLocalVideoSharing])
+
 
     async function toggleVideo() {
+        console.log("LOCAL_VIDEO_SHARING", isLocalVideoSharing)
 
-        stopScreenStream()
+        try {
+            stopScreenStream()
 
-        if (isLocalVideoSharing) {
-            removeAllVideoTracks(peerConnection, localStream);
-            webcamVideoRef.current.srcObject = null
+            if (isLocalVideoSharing) {
+                removeAllVideoTracks(peerConnection, localStream);
+                webcamVideoRef.current.srcObject = null
+            }
+            else {
+                let failed = await setNewVideoTrack(peerConnection, localStream, 'webcam')
+                if (failed) throw "TOGGLE_VIDEO_TO_TRUE_FAILED " + failed
+                webcamVideoRef.current.srcObject = localStream
+            }
+
+            socket.emit(isLocalVideoSharing ? IOEvents.MUTE_VIDEO : IOEvents.UNMUTE_VIDEO)
+            setLocalVideoSharing(isLocalVideoSharing => !isLocalVideoSharing)
+        } catch (error) {
+            console.log(error)
+            toast("Camera permission is not allowed")
         }
-        else {
-            await setNewVideoTrack(peerConnection, localStream, 'webcam')
-            webcamVideoRef.current.srcObject = localStream
-        }
 
-        socket.emit(isLocalVideoSharing ? IOEvents.MUTE_VIDEO : IOEvents.UNMUTE_VIDEO)
-        setLocalVideoSharing(!isLocalVideoSharing)
     }
 
     async function stopWebcamStream() {
@@ -469,13 +535,6 @@ export const VideoCall = () => {
             socket.emit(IOEvents.MUTE_VIDEO)
             setLocalVideoSharing(false)
         }
-    }
-
-    async function startWebcamStream() {
-        await setNewVideoTrack(peerConnection, localStream, 'webcam')
-        webcamVideoRef.current.srcObject = localStream
-        socket.emit(IOEvents.UNMUTE_VIDEO)
-        setLocalVideoSharing(true)
     }
 
     async function stopScreenStream() {
@@ -496,10 +555,10 @@ export const VideoCall = () => {
                 webcamVideoRef.current.srcObject = null
             }
             else {
-                let success = await setNewVideoTrack(peerConnection, localStream, 'screen')
-                if (!success) {
+                let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', toggleScreenShare)
+                if (failed) {
                     webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
-                    throw "Screen Share Cancelled."
+                    throw "Screen Share Cancelled. " + failed
                 }
                 webcamVideoRef.current.srcObject = localStream
             }
@@ -510,7 +569,6 @@ export const VideoCall = () => {
 
         } catch (error) {
             console.log("Screen Toggle Error", error)
-            startWebcamStream()
         }
     }
 
@@ -547,8 +605,8 @@ export const VideoCall = () => {
         setRemoteScreenSharingEnabled(false)
         setRemoteBoardOpen(false)
 
-        setLocalAudioSharing(true)
-        setLocalVideoSharing(true)
+        setLocalAudioSharing(false)
+        setLocalVideoSharing(false)
         setLocalScreenSharing(false)
         isLocalScreenSharingFlag = false
 
@@ -558,6 +616,8 @@ export const VideoCall = () => {
         webcamVideoRef.current.srcObject = null
         remoteVideoRef.current.srcObject = null
         setRemoteUser({})
+
+        initLocalStream()
     }
 
     function isWebCamViewActive() {
@@ -565,7 +625,6 @@ export const VideoCall = () => {
         if (isCallStarted) active = true
         if (isRemoteVideoMute) active = false
         if (isRemoteScreenSharingEnabled) active = true
-        if (isLocalBoardOpen) active = true
         return active
     }
 
@@ -574,168 +633,212 @@ export const VideoCall = () => {
         if (isCallStarted) active = true
         if (isRemoteVideoMute) active = false
         if (isRemoteScreenSharingEnabled) active = true
-        if (isLocalBoardOpen) active = false
         return active
     }
 
+
     return (
-        <Row>
-            <Col lg={12} id="videos" className={isCallStarted ? "active" : ""}>
-                <span
-                    style={{
-                        display: (isLocalVideoSharing || isLocalScreenSharing) && !isLocalVideoHidden ? "initial" : "none",
-                    }}
-                >
-                    <video id="webcamVideo"
-                        ref={webcamVideoRef}
-                        className={isWebCamViewActive() ? "active" : ""}
-                        muted="muted"
-                        autoPlay={true}
-                        playsInline
-                        style={{
-                            objectFit: 'contain',
-                        }}
-                    ></video>
-                    {
-                        isCallStarted &&
-                        <button id="hideLocalVideoBtn" onClick={hideLocalVideo}>
-                            <i className="la la-close"></i>
-                        </button>
-                    }
-                </span>
-                <span>
-                    <video id="remoteVideo"
-                        ref={remoteVideoRef}
-                        className={isRemoteViewActive() ? "active" : ""}
-                        autoPlay={true}
-                        playsInline
-                        style={{
-                            objectFit: 'contain'
-                        }}
-                    ></video>
-                </span>
-                {
-                    isLocalBoardOpen &&
-                    <iframe
-                        title="WhiteBoard"
-                        id="whiteBoard"
-                        src={boardUrl}
-                    >
-                    </iframe>
-                }
-                {
-                    isCallStarted &&
-                    <>
-                        <div id="indicator-container">
-                            <div className="btns">
-                                {
-                                    Object.keys(remoteUser).length > 0 &&
-                                    <>
-                                        <span>
-                                            <i className="la la-user"></i>
-                                        &nbsp;
-                                        {remoteUser.name}
-                                        </span>
-                                    </>
-                                }
-                                <div className="indicator">
-                                    {
-                                        isRemoteMicMute &&
-                                        <span>
-                                            <i className="la la-microphone-slash "></i>
-                                        </span>
-                                    }
-                                    {
-                                        isRemoteVideoMute &&
-                                        <span>
-                                            <i className="las la-video-slash "></i>
-                                        </span>
-                                    }
-                                    {
-                                        isRemoteScreenSharingEnabled &&
-                                        <span>
-                                            <i className="las la-desktop "></i>
-                                        </span>
-                                    }
-                                    {
-                                        isRemoteBoardOpen &&
-                                        <span>
-                                            <i className="las la-pencil-alt"></i>
-                                        </span>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                }
-                <div id="btn-video-call-container">
-                    {
-                        !isCallStarted &&
-                        <button id="joinBtn"
-                            disabled={isCalling || !isAuthorized}
-                            onClick={startVideoCall}
-                            className={!isCalling ? 'not-calling' : ''}
+        <>
+            {
+                !isCallStarted &&
+                <div id="overlay"></div>
+            }
+            {
+                !isAuthorized &&
+                <div id="loader"><img alt="" src={icLoader} /></div>
+            }
+            {
+                isAuthorized &&
+                <div className="c-row ">
+                    <div className="c-col-12" id="videos" >
+                        <span
+                            style={{
+                                display: (isLocalVideoSharing || isLocalScreenSharing) && !isLocalVideoHidden ? "initial" : "none",
+                            }}
                         >
+                            <video id="webcamVideo"
+                                ref={webcamVideoRef}
+                                className={isWebCamViewActive() ? "active" : ""}
+                                muted="muted"
+                                autoPlay={true}
+                                playsInline
+                                style={{
+                                    objectFit: 'contain',
+                                }}
+                            ></video>
                             {
-                                !isCalling ? "Join Meeting" : (isJoined ? "Waiting for peer to Join" : "Joining")
-                            }
-                        </button>
-                    }
-                    {
-                        (isCalling || isCallStarted) &&
-                        <button
-                            id="hangupButton"
-                            onClick={endVideoCall}
-                        >
-                            <i className="la la-phone"></i>
-                        </button>
-                    }
-                    {
-                        isCallStarted &&
-                        <>
-                            <button
-                                className="operation-btn"
-                                onClick={toggleMicrophone}
-                            >
-                                <i className={isLocalAudioSharing ? "la la-microphone" : "las la-microphone-slash"} ></i>
-                            </button>
-                            <button
-                                className="operation-btn"
-                                onClick={toggleVideo}
-                                disabled={isLocalScreenSharing}
-                            >
-                                <i className={isLocalVideoSharing ? "la la-video" : "las la-video-slash"} ></i>
-                            </button>
-                            <button
-                                className="operation-btn"
-                                onClick={toggleScreenShare}
-                            >
-                                <i className={isLocalScreenSharing ? "las la-camera" : "las la-desktop"} ></i>
-                            </button>
-                            {
-                                isLocalVideoHidden &&
-                                <button
-                                    className="operation-btn"
-                                    onClick={showLocalVideo}
-                                >
-                                    <i className="lab la-creative-commons-by"></i>
+                                isCallStarted && (!isRemoteVideoMute || isRemoteScreenSharingEnabled) &&
+                                <button id="hideLocalVideoBtn" onClick={hideLocalVideo}>
+                                    <img alt="" src={icTimes} />
                                 </button>
                             }
-                            <button
-                                className="operation-btn"
-                                onClick={toggleBoard}
+                        </span>
+                        <span>
+                            <video id="remoteVideo"
+                                ref={remoteVideoRef}
+                                className={isRemoteViewActive() ? "active" : ""}
+                                autoPlay={true}
+                                playsInline
+                                style={{
+                                    objectFit: 'contain'
+                                }}
+                            ></video>
+                        </span>
+                        {
+                            isLocalBoardOpen &&
+                            <div className="whiteBoardContainer">
+                                <button onClick={toggleBoard}>
+                                    <img alt="" src={icPhoneOn}></img>
+                                </button>
+                                <iframe
+                                    title="WhiteBoard"
+                                    id="whiteBoard"
+                                    src={boardUrl}
+                                >
+                                </iframe>
+                            </div>
+                        }
+                        {
+                            isCallStarted &&
+                            <>
+                                <div id="indicator-container"
+                                    className={isLocalBoardOpen ? "board" : (isLocalVideoSharing || isLocalScreenSharing || !isRemoteVideoMute || isRemoteScreenSharingEnabled ? "" : "active")}
+                                >
+                                    <div className="btns">
+                                        {
+                                            Object.keys(remoteUser).length > 0 &&
+                                            <>
+                                                <div className="remoteUserName">
+                                                    <p>
+                                                        {getNameInitials(remoteUser.name)}
+                                                    </p>
+                                                </div>
+                                            </>
+                                        }
+                                    </div>
+                                    <div className="indicator">
+                                        {
+                                            isRemoteMicMute &&
+                                            <div>
+                                                <div>
+                                                    <img alt="" src={icMicSlash}></img>
+                                                </div>
+                                            </div>
+                                        }
+                                        {
+                                            isRemoteVideoMute &&
+                                            <div>
+                                                <div>
+                                                    <img alt="" src={icVideoSlash}></img>
+                                                </div>
+                                            </div>
+                                        }
+                                        {
+                                            isRemoteScreenSharingEnabled &&
+                                            <div>
+                                                <div>
+                                                    <img alt="" src={icScreenSharing}></img>
+                                                </div>
+                                            </div>
+                                        }
+                                        {
+                                            isRemoteBoardOpen &&
+                                            <div>
+                                                <div>
+                                                    <img alt="" src={icBrush}></img>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </>
+                        }
+                    </div>
+                    <div className={`call-controls-container ${isCallStarted ? 'calling' : 'not-calling'} c-col-12`}>
+                        <div className="c-row">
+                            <div
+                                id="my-user-info"
+                                className=" c-col-12 text-center"
+                                style={{ display: isCallStarted ? "none" : "initial" }}
                             >
-                                <i className={isLocalBoardOpen ? "las la-pencil-ruler" : "las la-pencil-alt"} ></i>
-                            </button>
-                        </>
-                    }
+                                <div>
+                                    <p>{getNameInitials(user.name)}</p>
+                                </div>
+                            </div>
+                            <div className="c-col-12 main-call-controls">
+                                {
+                                    (isCalling || isCallStarted) &&
+                                    <button
+                                        id="hangupButton"
+                                        className="operation-btn"
+                                        onClick={endVideoCall}
+                                    >
+                                        <img alt="" src={icPhoneOff} />
+                                    </button>
+                                }
+                                <button
+                                    className="operation-btn"
+                                    onClick={toggleMicrophone}
+                                >
+                                    <img alt="" src={isLocalAudioSharing ? icMic : icMicSlash} />
+                                </button>
+                                <button
+                                    className="operation-btn"
+                                    onClick={toggleVideo}
+                                    disabled={isLocalScreenSharing}
+                                >
+                                    <img alt="" src={isLocalVideoSharing ? icVideo : icVideoSlash} />
+                                </button>
+                                {
+                                    isCallStarted &&
+                                    <>
+                                        <button
+                                            className="operation-btn"
+                                            onClick={toggleScreenShare}
+                                        >
+                                            <img alt="" src={isLocalScreenSharing ? icScreenSharingSlash : icScreenSharing} />
+                                        </button>
+                                        {
+                                            isLocalVideoHidden &&
+                                            <button
+                                                className="operation-btn"
+                                                onClick={showLocalVideo}
+                                            >
+                                                <img alt="" src={icPortrait} />
+                                            </button>
+                                        }
+                                        <button
+                                            className="operation-btn"
+                                            onClick={toggleBoard}
+                                        >
+                                            <img alt="" src={icBrush} />
+                                        </button>
+                                    </>
+                                }
+                            </div>
+                            <div className="c-col-12 secondary-call-controls">
+                                {
+                                    !isCallStarted &&
+                                    <button id="joinBtn"
+                                        disabled={isCalling || !isAuthorized}
+                                        onClick={startVideoCall}
+                                        className={isCalling ? 'calling' : ''}
+                                    >
+                                        {
+                                            !isCalling ? "JOIN" : (isJoined ? "WAITING FOR SOMEONE TO JOIN" : "JOINING")
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            }
 
-            </Col>
             <div className="text-center">
                 <div id="snackbar"></div>
             </div>
-        </Row >
+        </>
     );
 
 }

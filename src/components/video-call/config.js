@@ -6,6 +6,10 @@ export const servers = {
             urls: [
                 "stun:stun1.l.google.com:19302",
                 "stun:stun2.l.google.com:19302",
+                "stun:stun3.l.google.com:19302",
+                "stun:stun4.l.google.com:19302",
+                "stun:stun.services.mozilla.com",
+                "stun:stunserver.org"
             ],
         },
     ],
@@ -24,7 +28,8 @@ export const VideoSharingConfig = {
             min: 480,
             max: 768,
         },
-    }
+    },
+
 };
 
 export const AudioSharingConfig = {

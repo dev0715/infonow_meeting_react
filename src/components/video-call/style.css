@@ -2,26 +2,84 @@ body {
 	font-family: "Syne Mono", monospace;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	width: 100vw;
+	height: 100vh;
 	text-align: center;
-	background-color: #000;
+	background-image: linear-gradient(116.82deg, #c600ff 0%, #7400ff 100%);
 	color: #2c3e50;
 	margin: 0px 0px;
+	padding: 0px;
 	overflow-x: hidden;
 	overflow-y: auto;
 }
 
+@keyframes rotation {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+#overlay {
+	width: 100vw;
+	height: 100vh;
+	top: 0px;
+	left: 0px;
+	position: fixed;
+	background: rgba(0, 0, 0, 30%);
+}
+
+#loader {
+	height: 100px;
+	width: 100px;
+	background: #f1f3f6;
+	box-shadow: -3px -3px 8px #ffffff, 3px 3px 8px rgba(55, 84, 170, 0.1),
+		inset 4px 4px 20px rgba(255, 255, 255, 0.5);
+	border-radius: 10px;
+	position: fixed;
+	left: calc(50% - 50px);
+	top: calc(50% - 50px);
+	padding: 30px;
+}
+
+#loader img {
+	height: 40px;
+	width: 40px;
+	animation: rotation 0.6s infinite ease-out;
+	margin: 30px;
+}
+
+.call-controls-container {
+	position: fixed !important;
+	bottom: 0px;
+	height: 70px;
+	z-index: 500;
+}
+
+.call-controls-container.not-calling {
+	bottom: 50%;
+}
+
+.call-controls-container.not-calling .main-call-controls {
+	margin-bottom: 30px;
+}
+
 #videos {
-	width: 100%;
+	width: 100vw;
 	height: 100vh;
 	overflow: hidden;
 }
 
 #remoteVideo {
 	display: none;
+	background: #000000;
 }
 
 #remoteVideo.active {
 	display: block;
+	position: absolute;
 	width: 100%;
 	height: 100%;
 	background: #000000;
@@ -36,6 +94,7 @@ body {
 	background: #000000;
 	border-radius: 7px;
 	box-shadow: 1px 1px 8px #000;
+	z-index: 100;
 }
 
 #webcamVideo {
@@ -55,61 +114,61 @@ body {
 }
 
 #joinBtn {
-	background: #34c234;
+	z-index: 100;
+	background: #23d935;
+	width: 150px;
 	padding: 1rem 2rem;
 	border-radius: 50px;
+	box-shadow: 1px 1px 8px #23d93585;
 	color: #fff;
 	font-weight: 700;
 	border: none;
 	outline: none;
 }
 
+#joinBtn.calling {
+	width: auto !important;
+}
+
 #joinBtn:hover {
-	background: #38d038;
+	background: #31e743;
 	transform: scale(1.01);
-	box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.214);
+	box-shadow: 1px 1px 8px #23d93585;
 }
 
 #joinBtn:disabled {
-	background: #84a184;
+	background: #3d7943;
 }
 
-.not-calling {
-	position: fixed;
-	width: 200px;
-	height: 56px;
-	left: calc(50% - 85px);
-	top: calc(50% - 28px);
+#my-user-info div {
+	display: inline-flex;
+	height: 175px;
+	width: 175px;
+	border-radius: 100px;
+	margin-bottom: 64px;
+	background: #aa39ca;
+	align-items: center;
+	box-shadow: 1px 1px 16px rgba(0, 0, 0, 0.296);
+}
+
+#my-user-info div p {
+	font-size: 3.5rem;
+	color: #fff;
+	font-weight: 800;
+	line-height: 100%;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	text-align: center;
+	text-transform: uppercase;
 }
 
 #hangupButton {
-	padding: 10px;
-	width: 50px;
-	height: 50px;
-	border-radius: 50px;
-	border: none;
-	color: #fff;
-	background: #cb1414;
-	font-size: 20px;
-	margin-left: 5px;
-	margin-right: 5px;
-	outline: none;
-}
-
-#hangupButton i {
-	transform: rotate(133deg);
+	background: #cb1414 !important;
 }
 
 #hangupButton:hover {
-	background: #df1616;
-}
-
-#videos.active #btn-video-call-container {
-	display: none;
-}
-
-#videos:hover.active #btn-video-call-container {
-	display: block;
+	background: #eb4444;
 }
 
 #hideLocalVideoBtn {
@@ -121,10 +180,18 @@ body {
 	border-radius: 50%;
 	outline: none;
 	background-color: black;
-	color: white;
 	opacity: 0.6;
 	height: 30px;
 	width: 30px;
+	display: flex;
+	text-align: center;
+	align-items: center;
+	justify-content: center;
+}
+
+#hideLocalVideoBtn img {
+	height: 20px;
+	width: 20px;
 }
 
 #hideLocalVideoBtn:hover {
@@ -135,23 +202,38 @@ body {
 	outline: none;
 }
 
+.c-row {
+	display: -ms-flexbox;
+	display: flex;
+	-ms-flex-wrap: wrap;
+	flex-wrap: wrap;
+}
+
+.c-col-12 {
+	position: relative;
+	width: 100%;
+}
+
 .operation-btn {
 	padding: 10px;
 	width: 50px;
 	height: 50px;
 	border-radius: 50px;
 	border: none;
-	color: #fff;
-	background: #4d4c4c;
-	font-size: 20px;
+	background: #aa39ca;
 	margin-left: 5px;
 	margin-right: 5px;
 	outline: none;
 	border: none;
 }
 
+.operation-btn img {
+	width: 24px;
+	height: 24px;
+}
+
 .operation-btn:hover {
-	background: #6e6d6d !important;
+	background: #bd44df !important;
 }
 
 .operation-btn:disabled {
@@ -171,46 +253,137 @@ body {
 
 #indicator-container {
 	position: absolute;
-	top: 30px;
-	left: calc(50% - 125px);
+	top: 10px;
+	left: calc(50% - 60px);
 	align-items: center;
 	text-align: center;
-	width: 250px;
+	width: 100px;
+	height: 100px;
 	opacity: 0.6;
 	pointer-events: none;
+	transition: top 0.5s, left 0.5s, width 0.5s, height 0.5s, position 0.5s,
+		bottom 0.5s, right 0.5s;
 }
 
-#indicator-container .btns span {
-	background-color: rgb(83, 82, 82);
-	color: white;
-	padding: 14px 14px;
-	border-radius: 50px;
+#indicator-container.board {
+	z-index: 2001;
+	right: 90px;
+	left: unset;
+	width: 70px;
+	height: 70px;
 }
 
-#indicator-container .btns .indicator {
-	padding-top: 5px;
-	padding-left: 10px;
+#indicator-container.board > .btns > .remoteUserName > p {
+	font-size: 1.5rem;
 }
 
-#indicator-container .btns .indicator span {
-	margin-right: 5px;
-	padding: 5px 7px;
-	background-color: rgb(0, 0, 0);
-	color: rgb(255, 255, 255);
-	border-radius: 50px;
-	font-size: 20px;
-}
-
-#indicator-container .btns:hover {
+#indicator-container.active {
+	top: 40%;
 	opacity: 1;
+	transform: scale(1.5);
+	width: 150px;
+	height: 150px;
+}
+
+#indicator-container > .btns {
+	text-align: center;
+	align-items: center;
+	display: inline-block;
+	height: 100%;
+	width: 100%;
+}
+
+#indicator-container > .btns > .remoteUserName {
+	display: inline-flex;
+	width: 100%;
+	height: 100%;
+	border-radius: 100px;
+	background: #aa39ca;
+	align-items: center;
+	box-shadow: 1px 1px 16px rgb(0 0 0 / 30%);
+}
+
+#indicator-container > .btns > .remoteUserName > p {
+	width: 100%;
+	font-size: 3rem;
+	color: #fff;
+	font-weight: 800;
+	line-height: 100%;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+#indicator-container > .indicator {
+	text-align: center;
+	width: 250px;
+	position: absolute;
+	left: calc(50% - 125px);
+	margin-top: -15px;
+}
+
+#indicator-container > .indicator > div {
+	margin-right: 5px;
+	background-color: rgb(0, 0, 0);
+	border-radius: 50px;
+	width: 30px;
+	height: 30px;
+	display: inline-block;
+	align-items: center;
+	text-align: center;
+	justify-content: center;
+	box-shadow: 0px 1px 10px #000;
+}
+
+#indicator-container > .indicator > div > div {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	text-align: center;
+	align-items: center;
+	justify-content: center;
+}
+
+#indicator-container > .indicator > div > div > img {
+	width: 16px;
+	height: 16px;
+}
+
+.whiteBoardContainer {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 100vw;
+	height: 100vh;
+	z-index: 2000;
+}
+
+.whiteBoardContainer > button {
+	position: absolute;
+	right: 20px;
+	top: 20px;
+	padding: 10px;
+	width: 50px;
+	height: 50px;
+	border-radius: 50px;
+	border: none;
+	background: #aa39ca;
+	margin-left: 5px;
+	margin-right: 5px;
+	outline: none;
+	border: none;
+	z-index: 3001;
+}
+
+.whiteBoardContainer > button > img {
+	width: 24px;
+	height: 24px;
 }
 
 #whiteBoard {
 	width: 100%;
-	height: 90%;
-	display: initial;
+	height: 100%;
 	background-color: white;
-	overflow: hidden;
+	z-index: 1000;
 }
 
 #snackbar {
@@ -278,87 +451,73 @@ body {
 	}
 }
 
-@media only screen and (max-width: 600px) {
+@media (min-width: 300px) and (max-width: 600px) {
 	#webcamVideo.active {
 		position: absolute;
-		top: 50px;
-		right: 34px;
+		top: 10px;
+		right: 25px;
 		width: 103px;
 		height: 77px;
-		background: #000000;
 		border-radius: 7px;
 		box-shadow: 1px 1px 8px #d2d2d2;
 		opacity: 1;
 	}
 
-	#hideLocalVideoBtn {
-		top: 52px;
-		right: 37px;
+	#indicator-container.active {
+		top: 40%;
+		opacity: 1;
+		transform: scale(1.5);
+		width: 100px;
+		height: 100px;
 	}
 
 	#indicator-container {
-		position: absolute;
-		top: 16px;
-		left: 95px;
-		align-items: left;
-		text-align: left;
+		left: calc(50% - 50px);
+		width: 80px;
+		height: 80px;
 	}
 
-	#indicator-container .btns span {
-		background-color: rgb(83, 82, 82);
-		color: white;
-		padding: 8px 12px;
-		border-radius: 50px;
+	#indicator-container > .btns > .remoteUserName > p {
+		font-size: 2rem;
 	}
 
-	#indicator-container .btns .indicator {
-		padding-top: 2px;
-	}
-
-	#indicator-container .btns .indicator span {
-		box-shadow: 1px 1px 6px #d2d2d2;
+	#indicator-container.board {
+		z-index: 2001;
+		right: 90px;
+		left: unset;
+		width: 70px;
+		height: 70px;
 	}
 
 	.operation-btn {
-		padding: 10px;
+		padding: 0px;
 		width: 40px;
 		height: 40px;
-		border-radius: 50px;
-		border: none;
-		color: #fff;
-		background: #4d4c4c;
-		font-size: 15px;
-		margin-left: 5px;
-		margin-right: 5px;
-		outline: none;
-		border: none;
 	}
 
-	#hangupButton {
-		padding: 10px;
-		width: 40px;
-		height: 40px;
-		font-size: 15px;
+	.operation-btn img {
+		width: 20px;
+		height: 20px;
 	}
 
-	#joinBtn {
-		height: 40px;
-		background: #34c234;
-		padding: 10px 20px;
-		border-radius: 50px;
-		color: #fff;
-		font-size: 15px;
-		font-weight: 700;
-		border: none;
-		outline: none;
+	#hideLocalVideoBtn {
+		top: 15px;
+		right: 30px;
+		opacity: 1;
+		height: 28px;
+		width: 28px;
+		display: flex;
+		text-align: center;
+		align-items: center;
+		justify-content: center;
 	}
 
-	#videos.active #btn-video-call-container {
-		display: block;
-	}
-
-	#videos:hover.active #btn-video-call-container {
-		display: block;
+	#indicator-container.board {
+		z-index: 2001;
+		left: unset;
+		right: 90px;
+		width: 70px;
+		height: 70px;
 	}
 }
 
@@ -369,21 +528,20 @@ body {
 		right: 13px;
 		width: 160px;
 		height: 122px;
-		background: #000000;
 		border-radius: 7px;
 		box-shadow: 1px 1px 8px #000;
 	}
-
-	#indicator-container .btns {
+	#hideLocalVideoBtn {
+		top: 25px;
+		right: 24px;
 		opacity: 1;
 	}
 
-	#videos.active #btn-video-call-container {
-		display: block;
-	}
-
-	#videos:hover.active #btn-video-call-container {
-		display: block;
+	#indicator-container.board {
+		z-index: 2001;
+		left: unset;
+		width: 70px;
+		height: 70px;
 	}
 }
 
@@ -391,24 +549,5 @@ body {
 	#videos {
 		width: 100%;
 		height: 100vh;
-	}
-
-	#webcamVideo.active {
-		position: absolute;
-		top: 15px;
-		right: 40px;
-		width: 160px;
-		height: 118px;
-		background: #000000;
-		border-radius: 7px;
-		box-shadow: 1px 1px 8px #ececec;
-	}
-
-	#hideLocalVideoBtn {
-		position: absolute;
-		z-index: 1000;
-		top: 20px;
-		right: 45px;
-		opacity: 1;
 	}
 }
