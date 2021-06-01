@@ -70,6 +70,7 @@ export async function setNewAudioTrack(peerConnection, stream) {
     try {
         stream.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
         let audioTrack = await getNewAudioTrack();
+
         setNewTrack(peerConnection, stream, audioTrack);
         return null
     } catch (error) {

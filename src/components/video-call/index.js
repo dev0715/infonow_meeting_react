@@ -6,7 +6,8 @@ import { servers, IOConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
 import { removeAllAudioTracks, removeAllVideoTracks, setNewAudioTrack, setNewVideoTrack } from './stream';
-import { getNameInitials } from './utils';
+import { audioScale, getNameInitials } from './utils';
+import { SoundMeter } from './sound-meter'
 
 const icBrush = require('../../images/brush.svg').default;
 const icMicSlash = require('../../images/mic-slash.svg').default;
@@ -20,6 +21,8 @@ const icVideoSlash = require('../../images/video-slash.svg').default;
 const icVideo = require('../../images/video.svg').default;
 const icLoader = require('../../images/loader.png').default;
 const icTimes = require('../../images/times.svg').default;
+
+
 
 // Global State
 /**@type {RTCPeerConnection} */
@@ -36,6 +39,8 @@ let isLocalScreenSharingFlag = false
 var candidates = [];
 let socket;
 
+let soundMeter;
+let meterRefresh;
 
 
 export const VideoCall = () => {
@@ -51,6 +56,7 @@ export const VideoCall = () => {
     const [isRemoteVideoMute, setRemoteVideoMute] = useState(false);
     const [isRemoteScreenSharingEnabled, setRemoteScreenSharingEnabled] = useState(false);
     const [isRemoteBoardOpen, setRemoteBoardOpen] = useState(false);
+    const [remoteAudioReading, setRemoteAudioReading] = useState(0);
 
     const [isLocalAudioSharing, setLocalAudioSharing] = useState(false);
     const [isLocalVideoSharing, setLocalVideoSharing] = useState(false);
@@ -239,18 +245,20 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.END_CALL, function () {
             console.log(IOEvents.END_CALL)
-            closeConnection()
-            resetAllStates()
+            endVideoCall()
         });
 
         socket.on(IOEvents.MUTE_AUDIO, function () {
             console.log(IOEvents.MUTE_AUDIO)
             setRemoteMicMute(true)
+            endSoundMeter()
+            setRemoteAudioReading(0)
         });
 
         socket.on(IOEvents.UNMUTE_AUDIO, function () {
             console.log(IOEvents.UNMUTE_AUDIO)
-            setRemoteMicMute(false)
+            setRemoteMicMute(false);
+            startSoundMeter()
         });
 
         socket.on(IOEvents.MUTE_VIDEO, function () {
@@ -283,6 +291,31 @@ export const VideoCall = () => {
             console.log(IOEvents.CLOSE_BOARD)
             setRemoteBoardOpen(false)
         });
+    }
+
+
+    function startSoundMeter() {
+        if (remoteStream.getAudioTracks().length > 0) {
+            soundMeter = new SoundMeter(new AudioContext());
+            soundMeter.connectToSource(remoteStream, function (e) {
+                if (e) {
+                    console.log("START_SOUND_METER_ERROR", e);
+                    return;
+                }
+                meterRefresh = setInterval(() => {
+                    setRemoteAudioReading(soundMeter.instant)
+                }, 100);
+            });
+        } else {
+            setTimeout(startSoundMeter, 2000);
+        }
+    }
+
+    function endSoundMeter() {
+        if (soundMeter)
+            soundMeter.stop()
+        if (meterRefresh)
+            clearInterval(meterRefresh);
     }
 
     function endCallOnReload() {
@@ -414,10 +447,7 @@ export const VideoCall = () => {
     function closeConnection() {
         closeLocalStream()
         closeRemoteStream();
-        if (peerConnection)
-            peerConnection.close();
-
-        window.location.reload();
+        peerConnection = null
     }
 
     async function initLocalStream() {
@@ -604,6 +634,7 @@ export const VideoCall = () => {
         setRemoteVideoMute(false)
         setRemoteScreenSharingEnabled(false)
         setRemoteBoardOpen(false)
+        setRemoteAudioReading(0)
 
         setLocalAudioSharing(false)
         setLocalVideoSharing(false)
@@ -617,7 +648,9 @@ export const VideoCall = () => {
         remoteVideoRef.current.srcObject = null
         setRemoteUser({})
 
-        initLocalStream()
+        endSoundMeter()
+
+        setTimeout(initLocalStream, 100)
     }
 
     function isWebCamViewActive() {
@@ -653,7 +686,7 @@ export const VideoCall = () => {
                     <div className="c-col-12" id="videos" >
                         <span
                             style={{
-                                display: (isLocalVideoSharing || isLocalScreenSharing) && !isLocalVideoHidden ? "initial" : "none",
+                                display: isLocalVideoSharing && !isLocalVideoHidden ? "initial" : "none",
                             }}
                         >
                             <video id="webcamVideo"
@@ -685,6 +718,12 @@ export const VideoCall = () => {
                             ></video>
                         </span>
                         {
+                            isLocalScreenSharing &&
+                            <div className="local-screen-sharing">
+                                <img alt="" src={icScreenSharing}></img>
+                            </div>
+                        }
+                        {
                             isLocalBoardOpen &&
                             <div className="whiteBoardContainer">
                                 <button onClick={toggleBoard}>
@@ -708,6 +747,11 @@ export const VideoCall = () => {
                                         {
                                             Object.keys(remoteUser).length > 0 &&
                                             <>
+                                                <div
+                                                    className={"soundBubble"}
+                                                    style={{ transform: `scale(${audioScale(remoteAudioReading)})` }}
+                                                >
+                                                </div>
                                                 <div className="remoteUserName">
                                                     <p>
                                                         {getNameInitials(remoteUser.name)}

@@ -42,7 +42,7 @@ export const AudioSharingConfig = {
 };
 
 export const ScreenSharingConfig = {
-    logicalSurface: true,
+    logicalSurface: false,
     video: {
         cursor: "always" | "motion" | "never",
         displaySurface: "application" | "browser" | "monitor" | "window",
