@@ -25,16 +25,18 @@ export async function getNewScreenTrack() {
     return track;
 }
 
-export async function getNewWebcamTrack() {
+export async function getNewWebcamTrack(deviceId = 'default') {
     /**@type {MediaStream} */
+    VideoSharingConfig.video.deviceId = deviceId
     let stream = await navigator.mediaDevices.getUserMedia(VideoSharingConfig)
     let track = stream.getVideoTracks()[0].clone();
     stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
     return track;
 }
 
-export async function getNewAudioTrack() {
+export async function getNewAudioTrack(deviceId = 'default') {
     /**@type {MediaStream} */
+    AudioSharingConfig.audio.deviceId = deviceId
     let stream = await navigator.mediaDevices.getUserMedia(AudioSharingConfig)
     let track = stream.getAudioTracks()[0].clone();
     stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
@@ -46,11 +48,13 @@ export async function getNewAudioTrack() {
  * @param {RTCPeerConnection} peerConnection
  * @param {MediaStream} stream
  * @param {'webcam'|'screen'} type
+ * @param {String} deviceId
+ * @param {function} callback
  */
-export async function setNewVideoTrack(peerConnection, stream, type, callback) {
+export async function setNewVideoTrack(peerConnection, stream, type, deviceId, callback) {
     try {
         stream.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
-        let getNewTrack = type === 'screen' ? getNewScreenTrack() : getNewWebcamTrack();
+        let getNewTrack = type === 'screen' ? getNewScreenTrack() : getNewWebcamTrack(deviceId);
         let videoTrack = await getNewTrack;
         videoTrack.onended = callback;
         setNewTrack(peerConnection, stream, videoTrack);
@@ -65,11 +69,12 @@ export async function setNewVideoTrack(peerConnection, stream, type, callback) {
  *
  * @param {RTCPeerConnection} peerConnection
  * @param {MediaStream} stream
+ * @param {String} deviceId
  */
-export async function setNewAudioTrack(peerConnection, stream) {
+export async function setNewAudioTrack(peerConnection, stream, deviceId) {
     try {
         stream.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
-        let audioTrack = await getNewAudioTrack();
+        let audioTrack = await getNewAudioTrack(deviceId);
 
         setNewTrack(peerConnection, stream, audioTrack);
         return null
@@ -137,4 +142,14 @@ function removeAllTracks(peerConnection, stream, kind) {
             t.stop();
             stream.removeTrack(t);
         });
+}
+
+/**
+ * 
+ * @param {'audioinput' | 'videoinput'} type 
+ */
+
+export async function getConnectedDevices(type) {
+    return await navigator.mediaDevices.enumerateDevices();
+
 }

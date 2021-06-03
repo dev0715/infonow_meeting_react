@@ -28,4 +28,5 @@ export const IOEvents = {
     CLOSE_BOARD: "CLOSE_BOARD",
     NEW_OFFER: "NEW_OFFER",
     NEW_ANSWER: "NEW_ANSWER",
+    RECONNECTING: "RECONNECTING"
 };

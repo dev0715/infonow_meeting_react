@@ -1,11 +1,14 @@
+
+
 import React, { useEffect, useState } from 'react'
 import io from "socket.io-client"
+import Select from 'react-select'
 import './style.css';
 import { IOEvents } from "./events"
 import { servers, IOConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
-import { removeAllAudioTracks, removeAllVideoTracks, setNewAudioTrack, setNewVideoTrack } from './stream';
+import { getConnectedDevices, removeAllAudioTracks, removeAllVideoTracks, setNewAudioTrack, setNewVideoTrack } from './stream';
 import { audioScale, getNameInitials } from './utils';
 import { SoundMeter } from './sound-meter'
 
@@ -42,6 +45,9 @@ let socket;
 let soundMeter;
 let meterRefresh;
 
+let mediaDevices = [];
+
+
 
 export const VideoCall = () => {
 
@@ -64,6 +70,14 @@ export const VideoCall = () => {
 
     const [isLocalBoardOpen, setLocalBoardOpen] = useState(false);
     const [boardUrl, setBoardUrl] = useState(null);
+
+
+    const [isDevicesChanged, setDevicesChanged] = useState(false);
+    const [micDeviceId, setMicDeviceId] = useState('default');
+    const [cameraDeviceId, setCameraDeviceId] = useState('default');
+
+    const [isAudioDeviceModelHidden, setAudioDeviceModelHidden] = useState(true);
+    const [isVideoDeviceModelHidden, setVideoDeviceModelHidden] = useState(true);
 
     const [webcamVideoRef, setWebcamVideoRef] = useState(React.createRef());
     const [remoteVideoRef, setRemoteVideoRef] = useState(React.createRef());
@@ -99,8 +113,13 @@ export const VideoCall = () => {
             //------------static for testing ----------//
             if (res.success) {
                 setAuthorized(true)
-                setUser(res.data);
-                initLocalStream();
+                if (isCallStarted) {
+                    console.log("RECONNECTING")
+                    socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
+                } else {
+                    setUser(res.data);
+                    initLocalStream();
+                }
             }
             else {
                 setAuthorized(false)
@@ -108,6 +127,14 @@ export const VideoCall = () => {
                 toast("You are not authorized")
             }
         });
+
+        socket.on(IOEvents.REJOIN_ROOM, res => {
+            if (res.success) {
+                toast("Reconnected")
+            } else {
+                endVideoCall()
+            }
+        })
 
         socket.on(IOEvents.NEW_OFFER, async (res) => {
             console.log(IOEvents.NEW_OFFER, res);
@@ -293,7 +320,6 @@ export const VideoCall = () => {
         });
     }
 
-
     function startSoundMeter() {
         if (remoteStream.getAudioTracks().length > 0) {
             soundMeter = new SoundMeter(new AudioContext());
@@ -339,12 +365,58 @@ export const VideoCall = () => {
         }
     }
 
-    function init() {
-        setTimeout(initSocket, 5000);
+    async function init() {
+
+        getMediaDevices()
+        initSocket()
         window.addEventListener("beforeunload", endCallOnReload);
     }
 
     useEffect(init, [])
+    useEffect(() => {
+        console.log("IS_DEVICES_CHANGED", isDevicesChanged)
+        if (isDevicesChanged) {
+            refreshMediaDevices()
+        }
+    }, [isDevicesChanged])
+
+
+    async function getMediaDevices() {
+        try {
+            mediaDevices = await getConnectedDevices();
+            console.log("Media_Devices", mediaDevices)
+            navigator.mediaDevices.addEventListener('devicechange', event => {
+                console.log("Device_Change_Detected", event)
+                setDevicesChanged(isDevicesChanged => !isDevicesChanged)
+            });
+        } catch (error) {
+            console.log("MEDIA_DEVICES_ERROR", error)
+        }
+    }
+
+
+    async function refreshMediaDevices() {
+
+        mediaDevices = await getConnectedDevices();
+        console.log("Mic_ON", isLocalAudioSharing)
+        console.log("WebCam_ON", isLocalVideoSharing)
+        if (isLocalAudioSharing) {
+            if (!mediaDevices.find(m => m.deviceId === micDeviceId)) toggleMicrophone();
+        }
+        if (isLocalVideoSharing) {
+            if (!mediaDevices.find(m => m.deviceId === cameraDeviceId)) toggleVideo();
+        }
+        setDevicesChanged(false)
+    }
+
+    function getAudioMediaDevices() {
+        return mediaDevices.filter(device => device.kind === 'audioinput')
+    }
+
+    function getVideoMediaDevices() {
+        return mediaDevices.filter(device => device.kind === 'videoinput')
+    }
+
 
     function hideLocalVideo() {
         setLocalVideoHidden(true)
@@ -508,19 +580,20 @@ export const VideoCall = () => {
     useEffect(sendInitialEvents, [isCallStarted])
 
     async function toggleMicrophone() {
+        console.log("MIC_ID", micDeviceId)
         try {
             if (isLocalAudioSharing) {
                 removeAllAudioTracks(peerConnection, localStream);
             }
             else {
-                let failed = await setNewAudioTrack(peerConnection, localStream)
+                let failed = await setNewAudioTrack(peerConnection, localStream, micDeviceId)
                 if (failed) throw failed;
             }
             socket.emit(isLocalAudioSharing ? IOEvents.MUTE_AUDIO : IOEvents.UNMUTE_AUDIO)
             setLocalAudioSharing(isLocalAudioSharing => !isLocalAudioSharing)
         } catch (error) {
             console.log(error)
-            toast("MicroPhone permission is not allowed")
+            toast("MicroPhone is not enabled")
         }
     }
 
@@ -534,7 +607,7 @@ export const VideoCall = () => {
 
 
     async function toggleVideo() {
-        console.log("LOCAL_VIDEO_SHARING", isLocalVideoSharing)
+        console.log("CAM_ID", cameraDeviceId)
 
         try {
             stopScreenStream()
@@ -544,16 +617,15 @@ export const VideoCall = () => {
                 webcamVideoRef.current.srcObject = null
             }
             else {
-                let failed = await setNewVideoTrack(peerConnection, localStream, 'webcam')
+                let failed = await setNewVideoTrack(peerConnection, localStream, 'webcam', cameraDeviceId)
                 if (failed) throw "TOGGLE_VIDEO_TO_TRUE_FAILED " + failed
                 webcamVideoRef.current.srcObject = localStream
             }
-
             socket.emit(isLocalVideoSharing ? IOEvents.MUTE_VIDEO : IOEvents.UNMUTE_VIDEO)
             setLocalVideoSharing(isLocalVideoSharing => !isLocalVideoSharing)
         } catch (error) {
             console.log(error)
-            toast("Camera permission is not allowed")
+            toast("Camera is not enabled")
         }
 
     }
@@ -585,7 +657,7 @@ export const VideoCall = () => {
                 webcamVideoRef.current.srcObject = null
             }
             else {
-                let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', toggleScreenShare)
+                let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', null, toggleScreenShare)
                 if (failed) {
                     webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
                     throw "Screen Share Cancelled. " + failed
@@ -646,6 +718,13 @@ export const VideoCall = () => {
         setLocalVideoHidden(false)
         webcamVideoRef.current.srcObject = null
         remoteVideoRef.current.srcObject = null
+
+        setDevicesChanged(false)
+        setMicDeviceId('default')
+        setCameraDeviceId('default')
+        setVideoDeviceModelHidden(true)
+        setAudioDeviceModelHidden(true)
+
         setRemoteUser({})
 
         endSoundMeter()
@@ -667,6 +746,24 @@ export const VideoCall = () => {
         if (isRemoteVideoMute) active = false
         if (isRemoteScreenSharingEnabled) active = true
         return active
+    }
+
+    async function selectMicDevice(deviceId) {
+        console.log("SELECTED_MIC_DEVICE_ID", deviceId)
+        setMicDeviceId(deviceId)
+        setAudioDeviceModelHidden(true)
+        if (isLocalAudioSharing) {
+            setNewAudioTrack(peerConnection, localStream, deviceId)
+        }
+    }
+
+    async function selectCameraDevice(deviceId) {
+        console.log("SELECTED_CAMERA_DEVICE_ID", deviceId)
+        setCameraDeviceId(deviceId)
+        setVideoDeviceModelHidden(true)
+        if (isLocalVideoSharing) {
+            setNewVideoTrack(peerConnection, localStream, 'webcam', deviceId)
+        }
     }
 
 
@@ -820,19 +917,39 @@ export const VideoCall = () => {
                                         <img alt="" src={icPhoneOff} />
                                     </button>
                                 }
-                                <button
-                                    className="operation-btn"
-                                    onClick={toggleMicrophone}
+                                <span
+                                    className="media-device-container"
                                 >
-                                    <img alt="" src={isLocalAudioSharing ? icMic : icMicSlash} />
-                                </button>
-                                <button
-                                    className="operation-btn"
-                                    onClick={toggleVideo}
-                                    disabled={isLocalScreenSharing}
+                                    <button
+                                        className="operation-btn"
+                                        onClick={toggleMicrophone}
+                                    >
+                                        <img alt="" src={isLocalAudioSharing ? icMic : icMicSlash} />
+                                    </button>
+                                    <button
+                                        className="device-selector"
+                                        onClick={() => setAudioDeviceModelHidden(false)}
+                                    >
+                                        <img alt="" src={icMic} />
+                                    </button>
+                                </span>
+                                <span
+                                    className={isLocalVideoSharing ? "media-device-container" : "media-device-container active"}
                                 >
-                                    <img alt="" src={isLocalVideoSharing ? icVideo : icVideoSlash} />
-                                </button>
+                                    <button
+                                        className="operation-btn"
+                                        onClick={toggleVideo}
+                                        disabled={isLocalScreenSharing}
+                                    >
+                                        <img alt="" src={isLocalVideoSharing ? icVideo : icVideoSlash} />
+                                    </button>
+                                    <button
+                                        className="device-selector"
+                                        onClick={() => setVideoDeviceModelHidden(false)}
+                                    >
+                                        <img alt="" src={icVideo} />
+                                    </button>
+                                </span>
                                 {
                                     isCallStarted &&
                                     <>
@@ -876,6 +993,53 @@ export const VideoCall = () => {
                             </div>
                         </div>
                     </div>
+                    <div
+                        className='model'
+                        style={{ display: isAudioDeviceModelHidden ? "none" : "flex" }}
+                    >
+                        <div className='model-body'>
+                            <div className="model-header">
+                                <button>
+                                    <img alt="" src={icTimes} onClick={() => setAudioDeviceModelHidden(true)} />
+                                </button>
+                            </div>
+                            <div className="model-content">
+                                <div className="model-label">Select Microphone</div>
+                                <Select
+                                    className="select"
+                                    options={getAudioMediaDevices().map(d => {
+                                        return { value: d.deviceId, label: d.label }
+                                    })}
+                                    defaultValue={micDeviceId}
+                                    onChange={(e) => selectMicDevice(e.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        className='model'
+                        style={{ display: isVideoDeviceModelHidden ? "none" : "flex" }}
+                    >
+                        <div className='model-body'>
+                            <div className="model-header">
+                                <button>
+                                    <img alt="" src={icTimes} onClick={() => setVideoDeviceModelHidden(true)} />
+                                </button>
+                            </div>
+                            <div className="model-content">
+                                <div className="model-label">Select Camera</div>
+                                <Select
+                                    className="select"
+                                    options={getVideoMediaDevices().map(d => {
+                                        return { value: d.deviceId, label: d.label }
+                                    })}
+                                    onChange={(e) => selectCameraDevice(e.value)}
+
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             }
 
