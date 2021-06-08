@@ -146,10 +146,68 @@ function removeAllTracks(peerConnection, stream, kind) {
 
 /**
  * 
- * @param {'audioinput' | 'videoinput'} type 
  */
 
-export async function getConnectedDevices(type) {
+export async function getConnectedDevices() {
     return await navigator.mediaDevices.enumerateDevices();
 
+}
+
+/**
+ * 
+ * @returns {Promise<MediaDeviceInfo[]>}
+ */
+export async function getAudioMediaDevices() {
+    let devices = await getConnectedDevices();
+    return devices.filter(device => device.kind === 'audioinput')
+}
+
+/**
+ * 
+ * @returns {Promise<MediaDeviceInfo[]>}
+ */
+export async function getVideoMediaDevices() {
+    let devices = await getConnectedDevices();
+    return devices.filter(device => device.kind === 'videoinput')
+}
+
+/**
+ * 
+ * @param {'audioinput'|'videoinput'} kind 
+ */
+async function isMediaAvailable(kind) {
+    let md = navigator.mediaDevices;
+    if (!md || !md.enumerateDevices) return false;
+    let devices = await md.enumerateDevices();
+    return !!devices.find(d=>d.kind === kind && d.deviceId)
+}
+
+export async function isCameraAvailable() {
+    return isMediaAvailable('videoinput')
+}
+
+export async function isAudioAvailable() {
+    return isMediaAvailable('audioinput')
+}
+
+/**
+ * 
+ * @param {RTCPeerConnection} peerConnection 
+ * @param {MediaStream} stream 
+ * @param {React.RefObject} videoRef 
+ * @param {string} descriptor 
+ * 
+ */
+export function closeStreamsAndResetVideo(peerConnection, stream, videoRef, descriptor="remote") {
+    try {
+
+        console.log(`Closing '${descriptor}' stream and reseting relevant Stream Element`);
+        if (stream) {
+            removeAllVideoTracks(peerConnection, stream)
+            removeAllAudioTracks(peerConnection, stream)
+            videoRef.current.srcObject = null
+        }
+    } catch (error) {
+        console.warn(`Closing '${descriptor}' stream Failed: `, error)
+    }
 }

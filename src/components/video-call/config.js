@@ -16,7 +16,12 @@ export const servers = {
     iceCandidatePoolSize: 10,
 };
 
-export const IOConfig = { transports: ['websocket', 'polling', 'flashsocket'] }
+export const IOConfig = {
+    "path": "/live/socket.io",
+    "reconnection": true,
+    "reconnectionDelay": 100, //Make the xhr connections as fast as possible
+    "timeout": 1000 * 60 * 20 // Timeout after 20 minutes 
+}
 
 export const VideoSharingConfig = {
     video: {

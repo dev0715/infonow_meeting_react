@@ -322,32 +322,37 @@ body {
 	min-height: 14vh;
 	border-radius: 4px;
 	z-index: 5001;
-
+	position: relative;
 	min-width: 300px;
 	width: 500px;
 }
 
 .model-body > .model-header {
 	display: flex;
-	align-items: end;
-	justify-content: flex-end;
 }
 
+.model-body > .model-header > h3{
+	margin: 0px 0px 15px 0px;
+}
 .model-body > .model-header > button {
-	width: 30px;
-	height: 30px;
+	width: 24px;
+	height: 24px;
 	display: flex;
+	position: absolute;
+	top: 15px;
+	right: 15px;
 	justify-content: center;
 	align-items: center;
 	border-radius: 5px;
-	background-color: #00000036;
+	background-color: transparent;
 	border: none;
 	outline: none;
 }
 
 .model-body > .model-header > button > img {
-	width: 24px;
-	height: 24px;
+	width: 16px;
+	height: 16px;
+	filter: invert(1);
 }
 
 .model-content {
@@ -429,7 +434,6 @@ body {
 	background-image: -webkit-radial-gradient(#9e2fbd 50%, #7400ff 100%);
 	background-image: -moz-radial-gradient(#9e2fbd 50%, #7400ff 100%);
 	background-image: -o-radial-gradient(#9e2fbd 50%, #7400ff 100%);
-	/* border: 3px solid #ffffff; */
 	border-radius: 100%;
 }
 
@@ -461,7 +465,6 @@ body {
 	align-items: center;
 	text-align: center;
 	justify-content: center;
-	box-shadow: 0px 1px 10px #000;
 }
 
 #indicator-container > .indicator > div > div {

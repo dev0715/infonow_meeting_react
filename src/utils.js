@@ -43,11 +43,6 @@ export function detectAudioLevelOfRemoteStream(audioLevels, stream) {
                 instant_L = Math.max(instant_L, audioLevels.old_level_L - 0.008);
                 audioLevels.old_level_L = instant_L;
 
-
-                // cnvs_cntxt.clearRect(0, 0, cnvs.width, cnvs.height);
-                // cnvs_cntxt.fillStyle = '#00ff00';
-                // cnvs_cntxt.fillRect(10,10,(cnvs.width-20)*(instant_L/max_level_L),(cnvs.height-20)); // x,y,w,h
-
                 console.log("Audio_Level", instant_L / audioLevels.max_level_L)
             })
         }
@@ -55,6 +50,40 @@ export function detectAudioLevelOfRemoteStream(audioLevels, stream) {
 }
 
 export function audioScale(remoteAudioReading) {
-    let scale = 1.0 + (parseFloat(remoteAudioReading) * 30);
-    return scale > 2 ? 2 : scale;
+    let scale = 1.0 + (parseFloat(remoteAudioReading) * 20);
+    return scale > 1.5 ? 1.5 : scale;
+}
+
+export function toast(text) {
+    let x = document.getElementById("snackbar");
+    x.innerHTML = text
+    x.className = "show";
+
+    setTimeout(function () {
+        x.className = x.className.replace("show", "");
+    }, 3000);
+}
+
+/**
+ * 
+ * @param {MediaDeviceInfo[]} devices 
+ */
+export function devicesSelectList(devices) {
+    return devices.map(d => {
+        return { value: d.deviceId, label: d.label }
+    })
+}
+
+
+export function playSound(id, loop = false) {
+    let audio = document.getElementById(id);
+    if (loop) audio.setAttribute("loop", true);
+    else audio.removeAttribute("loop");
+    audio.play();
+}
+
+export function stopSound(id) {
+    let audio = document.getElementById(id);
+    audio.load();
+    audio.pause();
 }

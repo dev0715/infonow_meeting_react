@@ -13,12 +13,13 @@
 // instantaneous and time-decaying volumes available for inspection.
 // It also reports on the fraction of samples that were at or near
 // the top of the measurement range.
-export function SoundMeter(context) {
+export function SoundMeter(context, readingCallback = ()=>{}) {
   this.context = context;
   this.instant = 0.0;
   this.slow = 0.0;
   this.clip = 0.0;
   this.script = context.createScriptProcessor(2048, 1, 1);
+
   const that = this;
   this.script.addEventListener('audioprocess', function (event) {
     const input = event.inputBuffer.getChannelData(0);
@@ -34,6 +35,9 @@ export function SoundMeter(context) {
     that.instant = Math.sqrt(sum / input.length);
     that.slow = 0.95 * that.slow + 0.05 * that.instant;
     that.clip = clipcount / input.length;
+    if (readingCallback) {
+      readingCallback(that.instant);
+    }
   });
 }
 
