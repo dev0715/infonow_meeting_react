@@ -39,16 +39,19 @@ body {
 		inset 4px 4px 20px rgba(255, 255, 255, 0.5);
 	border-radius: 10px;
 	position: fixed;
-	left: calc(50% - 50px);
-	top: calc(50% - 50px);
+	margin: auto;
+	left: 0px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
 	padding: 30px;
 }
 
 #loader img {
-	height: 40px;
-	width: 40px;
+	height: 50px;
+	width: 50px;
 	animation: rotation 0.6s infinite ease-out;
-	margin: 30px;
+	margin: 20px;
 }
 
 .call-controls-container {
@@ -59,7 +62,7 @@ body {
 }
 
 .call-controls-container.not-calling {
-	bottom: 50%;
+	bottom: 65%;
 }
 
 .call-controls-container.not-calling .main-call-controls {
@@ -334,6 +337,7 @@ body {
 .model-body > .model-header > h3{
 	margin: 0px 0px 15px 0px;
 }
+
 .model-body > .model-header > button {
 	width: 24px;
 	height: 24px;
@@ -585,6 +589,32 @@ body {
 }
 
 @media (min-width: 300px) and (max-width: 600px) {
+
+	#loader {
+		height: 70px;
+		width: 70px;
+		padding: 10px;
+	}
+	
+	.model-body > .model-header > h3{
+		font-size: 14px;
+	}
+
+	.model-body{
+		min-width: 220px;
+		width: fit-content;
+	}
+
+	.model-body .select{
+		font-size: 12px;
+	}
+
+	#loader img {
+		height: 30px;
+		width: 30px;
+		margin: 20px;
+	}
+
 	#webcamVideo.active {
 		position: absolute;
 		top: 10px;

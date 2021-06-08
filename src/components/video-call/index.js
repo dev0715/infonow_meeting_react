@@ -118,8 +118,7 @@ export const VideoCall = () => {
         //     "timeout": 1000 * 60 * 20 // Timeout after 20 minutes
         // })
 
-        // socket = io("", IOConfig);
-        socket = io("http://192.168.10.104:3601/", IOConfig);
+        socket = io(URLs.main, IOConfig);
 
         socket.on(IOEvents.CONNECT, function () {
             socket.emit(IOEvents.SET_LANGUAGE, {
@@ -732,10 +731,12 @@ export const VideoCall = () => {
                 !isCallStarted &&
                 <div id="overlay"></div>
             }
+
             {
                 !isAuthorized &&
                 <div id="loader"><img alt="" src={icLoader} /></div>
             }
+
             {
                 isAuthorized &&
                 <div className="c-row ">

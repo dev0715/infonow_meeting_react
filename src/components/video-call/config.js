@@ -17,8 +17,8 @@ export const servers = {
 };
 
 export const IOConfig = {
-    "transports": ['websocket', 'polling', 'flashsocket'],
-    "path": "/socket.io",
+    "transports": ["websocket", "flashsocket", "pooling"],
+    "path": "/live/socket.io",
     "reconnection": true,
     "reconnectionDelay": 100, //Make the xhr connections as fast as possible
     "timeout": 1000 * 60 * 20 // Timeout after 20 minutes 
