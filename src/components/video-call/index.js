@@ -117,8 +117,9 @@ export const VideoCall = () => {
         //     "reconnectionDelay": 100, //Make the xhr connections as fast as possible
         //     "timeout": 1000 * 60 * 20 // Timeout after 20 minutes
         // })
-        
-        socket = io("", IOConfig);
+
+        // socket = io("", IOConfig);
+        socket = io("http://192.168.10.104:3601/", IOConfig);
 
         socket.on(IOEvents.CONNECT, function () {
             socket.emit(IOEvents.SET_LANGUAGE, {
@@ -158,6 +159,12 @@ export const VideoCall = () => {
         socket.on(IOEvents.NEW_OFFER, async (res) => {
             console.log(IOEvents.NEW_OFFER, res);
             if (res.data) {
+
+                if (res.newConnection) {
+                    if (peerConnection) peerConnection.close()
+                    initPeerConnection()
+                }
+
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
                 const answerDescription = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answerDescription);
@@ -165,7 +172,7 @@ export const VideoCall = () => {
                 // --------------SEND ANSWER------------- //
                 // -------------------------------------- //
                 socket.emit(IOEvents.NEW_ANSWER, {
-                    type: IOEvents.NEW_ANSWER,
+                    newConnection: res.newConnection ?? false,
                     data: {
                         type: answerDescription.type,
                         sdp: answerDescription.sdp,
@@ -180,6 +187,9 @@ export const VideoCall = () => {
                 console.log(IOEvents.NEW_ANSWER);
                 const answerDescription = new RTCSessionDescription(res.data);
                 peerConnection.setRemoteDescription(answerDescription);
+            }
+            if (res.newConnection) {
+                socket.emit(IOEvents.START_CALL);
             }
         });
 
@@ -235,9 +245,7 @@ export const VideoCall = () => {
                 console.log(IOEvents.RECEIVE_ANSWER);
                 const answerDescription = new RTCSessionDescription(res.answer);
                 peerConnection.setRemoteDescription(answerDescription);
-                socket.emit(IOEvents.START_CALL, {
-                    type: IOEvents.RECEIVE_ANSWER
-                });
+                socket.emit(IOEvents.START_CALL);
             }
         });
 
@@ -252,7 +260,6 @@ export const VideoCall = () => {
                     // ---------------SEND ANSWER------------- //
                     // --------------------------------------- //
                     socket.emit(IOEvents.ANSWER_CALL, {
-                        type: IOEvents.ANSWER_CALL,
                         data: {
                             type: answerDescription.type,
                             sdp: answerDescription.sdp,
@@ -339,12 +346,13 @@ export const VideoCall = () => {
         window.removeEventListener("beforeunload", endCallOnReload);
     }
 
-    async function createOffer() {
+    async function createOffer(newConnection = false) {
         if (peerConnection) {
             const offerDescription = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offerDescription);
 
             socket.emit(IOEvents.NEW_OFFER, {
+                newConnection: newConnection,
                 data: {
                     sdp: offerDescription.sdp,
                     type: offerDescription.type,
@@ -360,7 +368,6 @@ export const VideoCall = () => {
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
         window.addEventListener("beforeunload", endCallOnReload)
     }
-
 
     function initPeerConnection() {
         try {
@@ -397,7 +404,6 @@ export const VideoCall = () => {
         candidates.forEach(c => {
             console.log("ICE_ARRAY_EVENT")
             socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
-                type: IOEvents.CREATE_ICE_EVENT_DATA,
                 data: c
             });
         });
@@ -406,11 +412,19 @@ export const VideoCall = () => {
             if (event.candidate) {
                 console.log("LOCAL_ICE_EVENT",)
                 socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
-                    type: IOEvents.CREATE_ICE_EVENT_DATA,
                     data: event.candidate.toJSON()
                 });
             }
         };
+
+        peerConnection.oniceconnectionstatechange = async function () {
+            if (peerConnection.iceConnectionState == 'disconnected') {
+                console.log('PEER_CONNECTION_DISCONNECTED');
+                peerConnection.close();
+                initPeerConnection()
+                await createOffer(true)
+            }
+        }
 
     }
 
@@ -455,7 +469,6 @@ export const VideoCall = () => {
                 await peerConnection.setLocalDescription(offerDescription);
 
                 socket.emit(IOEvents.CREATE_ROOM, {
-                    type: IOEvents.CREATE_ROOM,
                     meetingId: meetingId,
                     data: {
                         sdp: offerDescription.sdp,
@@ -470,7 +483,6 @@ export const VideoCall = () => {
 
     function joinRoom() {
         let evtData = {
-            type: IOEvents.ROOM_JOIN,
             meetingId: meetingId,
         }
         setTimeout(() => socket.emit(IOEvents.ROOM_JOIN, evtData), 1000);
@@ -483,7 +495,6 @@ export const VideoCall = () => {
             socket.emit(isLocalVideoSharing ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
         }
     }
-
 
     async function toggleMicrophone() {
         console.log("MIC_ID", micDeviceId)
@@ -620,7 +631,6 @@ export const VideoCall = () => {
         if (isRemoteScreenSharingEnabled) active = true
         return active
     }
-
 
     async function selectMicDevice(deviceId) {
         console.log("SELECTED_MIC_DEVICE_ID", deviceId)
