@@ -17,7 +17,7 @@ export const servers = {
 };
 
 export const IOConfig = {
-    "transports": ["websocket", "flashsocket", "pooling"],
+    // "transports": ["websocket", "flashsocket", "pooling"],
     "path": "/live/socket.io",
     "reconnection": true,
     "reconnectionDelay": 100, //Make the xhr connections as fast as possible

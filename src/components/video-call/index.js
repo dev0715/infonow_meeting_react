@@ -12,7 +12,6 @@ import { getWhiteboardUrl, URLs } from './urls';
 
 import {
     getAudioMediaDevices,
-    getConnectedDevices,
     getVideoMediaDevices,
     isAudioAvailable,
     isCameraAvailable,
@@ -132,6 +131,7 @@ export const VideoCall = () => {
             console.log(IOEvents.AUTHORIZATION, res)
             if (res.success) {
                 setAuthorized(true)
+                console.log("RECONNECTING", isCallStarted)
                 if (isCallStarted) {
                     console.log("RECONNECTING")
                     socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
@@ -147,9 +147,12 @@ export const VideoCall = () => {
             }
         });
 
-        socket.on(IOEvents.REJOIN_ROOM, res => {
+        socket.on(IOEvents.RECONNECTING, async (res) => {
             if (res.success) {
                 toast("Reconnected")
+                peerConnection.close();
+                initPeerConnection()
+                await createOffer(true)
             } else {
                 endVideoCall()
             }
@@ -419,9 +422,6 @@ export const VideoCall = () => {
         peerConnection.oniceconnectionstatechange = async function () {
             if (peerConnection.iceConnectionState == 'disconnected') {
                 console.log('PEER_CONNECTION_DISCONNECTED');
-                peerConnection.close();
-                initPeerConnection()
-                await createOffer(true)
             }
         }
 
