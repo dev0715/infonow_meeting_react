@@ -12,6 +12,7 @@ export default function SelectDevice(props) {
                 className='model'
                 style={{ display: "flex" }}
             >
+                
                 <div className='model-body'>
                     <div className="model-header">
                         <button className="btn-close">

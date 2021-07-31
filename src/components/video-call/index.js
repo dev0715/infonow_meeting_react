@@ -42,6 +42,7 @@ const icScreenSharing = require('../../images/screensharing.svg').default;
 const icVideoSlash = require('../../images/video-slash.svg').default;
 const icVideo = require('../../images/video.svg').default;
 const icLoader = require('../../images/loader.png').default;
+const icConnecting = require('../../images/connecting.svg').default;
 const icTimes = require('../../images/times.svg').default;
 
 
@@ -60,12 +61,16 @@ let isLocalScreenSharingFlag = false
 var candidates = [];
 let socket;
 let soundMeter;
-
+let isOfferCreated = false;
 
 export const VideoCall = () => {
 
+    const [webcamVideoRef, setWebcamVideoRef] = useState(React.createRef());
+    const [remoteVideoRef, setRemoteVideoRef] = useState(React.createRef());
+
     const [isAuthorized, setAuthorized] = useState(false);
     const [isFirstAttempt, setFirstAttempt] = useState(true);
+    const [isReconnecting, setIsReconnecting] = useState(false);
 
     const [isJoined, setJoined] = useState(false);
     const [isCalling, setCalling] = useState(false);
@@ -90,8 +95,7 @@ export const VideoCall = () => {
     const [isAudioDeviceModelHidden, setIsAudioDeviceModelHidden] = useState(true);
     const [isVideoDeviceModelHidden, setIsVideoDeviceModelHidden] = useState(true);
 
-    const [webcamVideoRef, setWebcamVideoRef] = useState(React.createRef());
-    const [remoteVideoRef, setRemoteVideoRef] = useState(React.createRef());
+    
 
     const [isLocalVideoHidden, setLocalVideoHidden] = useState(false);
 
@@ -111,13 +115,6 @@ export const VideoCall = () => {
 
     function initSocket() {
 
-        // io.connect('', {
-        //     "path": window.location.pathname.split("/boards/")[0] + "/socket.io",
-        //     "reconnection": true,
-        //     "reconnectionDelay": 100, //Make the xhr connections as fast as possible
-        //     "timeout": 1000 * 60 * 20 // Timeout after 20 minutes
-        // })
-
         socket = io(URLs.main, IOConfig);
 
         socket.on(IOEvents.CONNECT, function () {
@@ -128,17 +125,21 @@ export const VideoCall = () => {
             socket.emit(IOEvents.AUTHORIZATION, { authorization: decodeURIComponent(token) })
         });
 
-        socket.on(IOEvents.AUTHORIZATION, function (res) {
+        socket.on(IOEvents.AUTHORIZATION, function (res) { 
             console.log(IOEvents.AUTHORIZATION, res)
             if (res.success) {
                 setAuthorized(true)
-                if (isCallStarted) {
-                    console.log("RECONNECTING")
-                    socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
-                } else {
-                    setUser(res.data);
-                    initLocalStream();
-                }
+                setUser(res.data);
+                initLocalStream();
+                if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 1000);
+                setCallStarted(isCallStarted => {
+                    if (isCallStarted) {
+                        console.log("RECONNECTING");
+                        socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
+                        setTimeout(()=>createOffer(false), 1000);
+                    }
+                    return isCallStarted;
+                }) 
             }
             else {
                 setAuthorized(false)
@@ -147,36 +148,32 @@ export const VideoCall = () => {
             }
         });
 
-        socket.on(IOEvents.REJOIN_ROOM, res => {
-            if (res.success) {
-                toast("Reconnected")
-            } else {
-                endVideoCall()
-            }
-        })
-
         socket.on(IOEvents.NEW_OFFER, async (res) => {
             console.log(IOEvents.NEW_OFFER, res);
             if (res.data) {
 
                 if (res.newConnection) {
+                    console.log("Creating new PeerConnection")
                     if (peerConnection) peerConnection.close()
                     initPeerConnection()
                 }
-
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-                const answerDescription = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answerDescription);
-                // -------------------------------------- //
-                // --------------SEND ANSWER------------- //
-                // -------------------------------------- //
-                socket.emit(IOEvents.NEW_ANSWER, {
-                    newConnection: res.newConnection ?? false,
-                    data: {
-                        type: answerDescription.type,
-                        sdp: answerDescription.sdp,
-                    }
-                });
+                setTimeout(async () => {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                    const answerDescription = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answerDescription);
+                    // -------------------------------------- //
+                    // --------------SEND ANSWER------------- //
+                    // -------------------------------------- //
+                    socket.emit(IOEvents.NEW_ANSWER, {
+                        newConnection: res.newConnection ?? false,
+                        data: {
+                            type: answerDescription.type,
+                            sdp: answerDescription.sdp,
+                        }
+                    });
+                    isOfferCreated = false;
+                }, 1500);
+                
             }
         });
 
@@ -188,8 +185,10 @@ export const VideoCall = () => {
                 peerConnection.setRemoteDescription(answerDescription);
             }
             if (res.newConnection) {
+                console.log("Starting Call");
                 socket.emit(IOEvents.START_CALL);
             }
+            isOfferCreated = false;
         });
 
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
@@ -228,7 +227,7 @@ export const VideoCall = () => {
                 if (res.data) {
                     console.log(IOEvents.CREATE_ICE_EVENT_DATA);
                     const candidate = new RTCIceCandidate(res.data);
-                    peerConnection.addIceCandidate(candidate);
+                    try { peerConnection.addIceCandidate(candidate); } catch (err) { } 
                 }
             } catch (error) {
                 console.log("CREATE_ICE_EVENT_DATA_ERROR", error)
@@ -301,11 +300,17 @@ export const VideoCall = () => {
         socket.on(IOEvents.MUTE_AUDIO, () => {
             console.log(IOEvents.MUTE_AUDIO)
             setRemoteMicMute(true)
+            // Clearning Sound Meter instance if exists
+            endSoundMeter();
         });
 
         socket.on(IOEvents.UNMUTE_AUDIO, () => {
             console.log(IOEvents.UNMUTE_AUDIO)
             setRemoteMicMute(false);
+            // Clearning Sound Meter instance if exists
+            endSoundMeter();
+            // starting new sound meter instance if audio is unmuted
+            if (!isRemoteMicMute) startSoundMeter()
         });
 
         socket.on(IOEvents.MUTE_VIDEO, () => {
@@ -347,17 +352,21 @@ export const VideoCall = () => {
 
     async function createOffer(newConnection = false) {
         if (peerConnection) {
-            const offerDescription = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offerDescription);
-
-            socket.emit(IOEvents.NEW_OFFER, {
-                newConnection: newConnection,
-                data: {
-                    sdp: offerDescription.sdp,
-                    type: offerDescription.type,
-                }
-            });
-            console.log("CREATING RE-NEGOTIATION OFFER");
+            if (newConnection) initPeerConnection();
+            setTimeout(async () => {
+                const offerDescription = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offerDescription);
+    
+                socket.emit(IOEvents.NEW_OFFER, {
+                    newConnection: newConnection,
+                    data: {
+                        sdp: offerDescription.sdp,
+                        type: offerDescription.type,
+                    }
+                });
+                console.log("CREATING RE-NEGOTIATION OFFER");
+                isOfferCreated = true;
+            }, 1500);
         }
     }
 
@@ -366,6 +375,7 @@ export const VideoCall = () => {
         updateDevices()
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
         window.addEventListener("beforeunload", endCallOnReload)
+        initLocalStream()
     }
 
     function initPeerConnection() {
@@ -376,7 +386,7 @@ export const VideoCall = () => {
 
             setupIceEventBeforeStartCall()
 
-            peerConnection.onnegotiationneeded = createOffer;
+            peerConnection.onnegotiationneeded = ()=>createOffer(false);
             // Push tracks from local stream to peer connection
             localStream.getTracks().forEach((track) => {
                 peerConnection.addTrack(track, localStream);
@@ -417,12 +427,13 @@ export const VideoCall = () => {
         };
 
         peerConnection.oniceconnectionstatechange = async function () {
-            if (peerConnection.iceConnectionState == 'disconnected') {
-                console.log('PEER_CONNECTION_DISCONNECTED');
-                peerConnection.close();
-                initPeerConnection()
-                await createOffer(true)
+            // "checking" | "closed" | "completed" | "connected" | "disconnected" | "failed" | "new";
+            console.log(`PeerConnection status: ${peerConnection.iceConnectionState}`)
+            if(peerConnection) setIsReconnecting(peerConnection.iceConnectionState !== 'connected');
+            if (peerConnection.iceConnectionState === "disconnected") {
+                createOffer(false);
             }
+            
         }
 
     }
@@ -447,8 +458,13 @@ export const VideoCall = () => {
 
     async function initLocalStream() {
         try {
-            localStream = new MediaStream();
-            webcamVideoRef.current.srcObject = localStream
+            setTimeout(() => {
+                if (!localStream && webcamVideoRef && webcamVideoRef.current) {
+                    localStream = new MediaStream();
+                    webcamVideoRef.current.srcObject = localStream
+                }
+            }, 500);
+            
         } catch (error) {
             console.log("INIT_LOCAL_STREAM_ERROR", error)
         }
@@ -489,7 +505,6 @@ export const VideoCall = () => {
 
     function sendInitialEvents() {
         if (socket && isCallStarted) {
-            console.log(`Local audio==>${isLocalAudioSharing}, Local video==>${isLocalVideoSharing}`)
             socket.emit(isLocalAudioSharing ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
             socket.emit(isLocalVideoSharing ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
         }
@@ -694,9 +709,9 @@ export const VideoCall = () => {
     }, [micDeviceId])
 
 
-    useEffect(() => {
-
-        function startSoundMeter() {
+    function startSoundMeter() {
+        console.log("starting sound meter");
+        setCallStarted(isCallStarted => {
             if (isCallStarted) {
                 if (remoteStream.getAudioTracks().length > 0) {
                     soundMeter = new SoundMeter(
@@ -704,26 +719,20 @@ export const VideoCall = () => {
                         instant => setRemoteAudioReading(instant)
                     );
                     soundMeter.connectToSource(remoteStream);
-                } else {
-                    setTimeout(startSoundMeter, 2000);
                 }
             }
+            return isCallStarted;
+        })
+        
+    }
+
+    function endSoundMeter() {
+        if (soundMeter) {
+            soundMeter.stop();
+            soundMeter = null;
         }
-
-        function endSoundMeter() {
-            if (soundMeter) {
-                soundMeter.stop();
-                soundMeter = null;
-            }
-            setRemoteAudioReading(0)
-        }
-
-        // Clearning Sound Meter instance if exists
-        endSoundMeter();
-
-        // starting new sound meter instance if audio is unmuted
-        if (!isRemoteMicMute) startSoundMeter()
-    }, [isRemoteMicMute])
+        setRemoteAudioReading(0)
+    }
 
     return (
         <>
@@ -732,9 +741,11 @@ export const VideoCall = () => {
                 <div id="overlay"></div>
             }
 
+                <div style={{display: !isReconnecting ? 'none' : 'unset'}} id="reconnection"><img alt="" src={icConnecting} /></div>
+            
             {
                 !isAuthorized &&
-                <div id="loader"><img alt="" src={icLoader} /></div>
+                <div id="loader"><img className="rotate" alt="" src={icLoader} /></div>
             }
 
             {
