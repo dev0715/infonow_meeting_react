@@ -15,10 +15,10 @@ body {
 
 @keyframes rotation {
 	from {
-		transform: rotate(0deg);
+		transform: rotate(360deg);
 	}
 	to {
-		transform: rotate(360deg);
+		transform: rotate(0deg);
 	}
 }
 
@@ -31,12 +31,33 @@ body {
 	background: rgba(0, 0, 0, 30%);
 }
 
+#reconnection {
+	height: 50px;
+	width: 50px;
+	background: #00000058;
+	z-index: 10000;
+	border-radius: 10px;
+	position: fixed;
+	left: 15px;
+	top: 15px;
+	bottom: 0px;
+	padding: 30px;
+}
+
+#reconnection img {
+	height: 50px;
+	width: 50px;
+	margin: 0px;
+}
+
+
 #loader {
 	height: 100px;
 	width: 100px;
 	background: #f1f3f6;
-	box-shadow: -3px -3px 8px #ffffff, 3px 3px 8px rgba(55, 84, 170, 0.1),
+	box-shadow: -3px -3px 8px rgba(0, 0, 0, 0.119), 3px 3px 8px rgba(55, 84, 170, 0.1),
 		inset 4px 4px 20px rgba(255, 255, 255, 0.5);
+	z-index: 10000;
 	border-radius: 10px;
 	position: fixed;
 	margin: auto;
@@ -47,11 +68,14 @@ body {
 	padding: 30px;
 }
 
+.rotate{
+	animation: rotation 1s infinite linear;
+}
+
 #loader img {
-	height: 50px;
-	width: 50px;
-	animation: rotation 0.6s infinite ease-out;
-	margin: 20px;
+	height: 70px;
+	width: 70px;
+	margin: 10px;
 }
 
 .call-controls-container {
