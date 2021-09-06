@@ -1,7 +1,7 @@
 export const URLs = {
-    main: 'https://meeting.meditati.ro/',
-    // main: 'https://6bb9e66f37b9.ngrok.io',
+    // main: 'http://localhost:3901',
     // whiteBoard: 'https://88ecdfca292a.ngrok.io/boards',
+    main: 'https://meet.meditati.ro/',
     whiteBoard: "https://whiteboard.meditati.ro/boards"
 }
 

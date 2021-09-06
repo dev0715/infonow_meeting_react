@@ -5,13 +5,14 @@
  */
 export function getNameInitials(name) {
     if (!name) return "";
-    if (name.indexOf(' ') > -1) {
-        let names = name.split(' ');
-        return names[0] + names[1];
+    let names = name.split(' ');
+    if (names.length > 1) {
+        return names[0].substr(0, 1) + names[1].substr(0, 1)
+    } else {
+        return names[0].substr(0, 1)
     }
-    else {
-        return name.substr(0, 2);
-    }
+
+
 }
 
 /**

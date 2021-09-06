@@ -6,14 +6,13 @@
  *  tree.
  */
 
-'use strict';
 
 // Meter class that generates a number correlated to audio volume.
 // The meter class itself displays nothing, but it makes the
 // instantaneous and time-decaying volumes available for inspection.
 // It also reports on the fraction of samples that were at or near
 // the top of the measurement range.
-export function SoundMeter(context, readingCallback = ()=>{}) {
+export function SoundMeter(context, readingCallback = () => { }) {
   this.context = context;
   this.instant = 0.0;
   this.slow = 0.0;
