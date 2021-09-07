@@ -94,8 +94,6 @@ export const VideoCall = () => {
     const [isAudioDeviceModelHidden, setIsAudioDeviceModelHidden] = useState(true);
     const [isVideoDeviceModelHidden, setIsVideoDeviceModelHidden] = useState(true);
 
-
-
     const [isLocalVideoHidden, setLocalVideoHidden] = useState(false);
 
     const [user, setUser] = useState({});
@@ -263,7 +261,8 @@ export const VideoCall = () => {
                 if (res.data) {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
                     const answerDescription = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answerDescription);
+                    // await peerConnection.setLocalDescription(answerDescription);
+                    await peerConnection.setLocalDescription(new RTCSessionDescription(answerDescription));
                     // --------------------------------------- //
                     // ---------------SEND ANSWER------------- //
                     // --------------------------------------- //
