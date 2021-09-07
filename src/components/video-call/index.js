@@ -174,10 +174,11 @@ export const VideoCall = () => {
                     // -------------------------------------- //
                     socket.emit(IOEvents.NEW_ANSWER, {
                         newConnection: res.newConnection ?? false,
-                        data: {
-                            type: answerDescription.type,
-                            sdp: answerDescription.sdp,
-                        }
+                        // data: {
+                        //     type: answerDescription.type,
+                        //     sdp: answerDescription.sdp,
+                        // }
+                        data: answerDescription
                     });
                     isOfferCreated = false;
                 }, 1500);
@@ -266,10 +267,11 @@ export const VideoCall = () => {
                     // ---------------SEND ANSWER------------- //
                     // --------------------------------------- //
                     socket.emit(IOEvents.ANSWER_CALL, {
-                        data: {
-                            type: answerDescription.type,
-                            sdp: answerDescription.sdp,
-                        }
+                        // data: {
+                        //     type: answerDescription.type,
+                        //     sdp: answerDescription.sdp,
+                        // }
+                        data: answerDescription
                     });
                 }
             } catch (error) {
@@ -367,10 +369,11 @@ export const VideoCall = () => {
 
                 socket.emit(IOEvents.NEW_OFFER, {
                     newConnection: newConnection,
-                    data: {
-                        sdp: offerDescription.sdp,
-                        type: offerDescription.type,
-                    }
+                    // data: {
+                    //     sdp: offerDescription.sdp,
+                    //     type: offerDescription.type,
+                    // }
+                    data: offerDescription
                 });
                 console.log("CREATING RE-NEGOTIATION OFFER");
                 isOfferCreated = true;
@@ -493,10 +496,11 @@ export const VideoCall = () => {
 
                 socket.emit(IOEvents.CREATE_ROOM, {
                     meetingId: meetingId,
-                    data: {
-                        sdp: offerDescription.sdp,
-                        type: offerDescription.type,
-                    }
+                    // data: {
+                    //     sdp: offerDescription.sdp,
+                    //     type: offerDescription.type,
+                    // }
+                    data: offerDescription
                 });
             } catch (error) {
                 console.log("CREATE_ROOM_FUNCTION_ERROR", error)
