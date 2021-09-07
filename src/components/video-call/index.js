@@ -166,7 +166,7 @@ export const VideoCall = () => {
                     initPeerConnection()
                 }
                 setTimeout(async () => {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                    await peerConnection.setRemoteDescription(res.data);
                     const answerDescription = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answerDescription);
                     // -------------------------------------- //
@@ -189,8 +189,7 @@ export const VideoCall = () => {
             console.log(IOEvents.NEW_ANSWER, res);
             if (res.data) {
                 console.log(IOEvents.NEW_ANSWER);
-                const answerDescription = new RTCSessionDescription(res.data);
-                peerConnection.setRemoteDescription(answerDescription);
+                peerConnection.setRemoteDescription(res.data);
             }
             if (res.newConnection) {
                 console.log("Starting Call");
@@ -249,8 +248,8 @@ export const VideoCall = () => {
             }
             if (!peerConnection.currentRemoteDescription && res.answer) {
                 console.log(IOEvents.RECEIVE_ANSWER);
-                const answerDescription = new RTCSessionDescription(res.answer);
-                peerConnection.setRemoteDescription(answerDescription);
+
+                peerConnection.setRemoteDescription(res.answer);
                 socket.emit(IOEvents.START_CALL);
             }
         });
@@ -259,10 +258,10 @@ export const VideoCall = () => {
             console.log(IOEvents.ROOM_JOIN, res)
             try {
                 if (res.data) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                    await peerConnection.setRemoteDescription(res.data);
                     const answerDescription = await peerConnection.createAnswer();
-                    // await peerConnection.setLocalDescription(answerDescription);
-                    await peerConnection.setLocalDescription(new RTCSessionDescription(answerDescription));
+
+                    await peerConnection.setLocalDescription(answerDescription);
                     // --------------------------------------- //
                     // ---------------SEND ANSWER------------- //
                     // --------------------------------------- //
