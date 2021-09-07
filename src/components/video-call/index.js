@@ -168,7 +168,7 @@ export const VideoCall = () => {
                 setTimeout(async () => {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
                     const answerDescription = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(new RTCSessionDescription(answerDescription));
+                    await peerConnection.setLocalDescription(answerDescription);
                     // -------------------------------------- //
                     // --------------SEND ANSWER------------- //
                     // -------------------------------------- //
@@ -492,14 +492,9 @@ export const VideoCall = () => {
         setTimeout(async () => {
             try {
                 const offerDescription = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(new RTCSessionDescription(offerDescription));
-
+                await peerConnection.setLocalDescription(offerDescription);
                 socket.emit(IOEvents.CREATE_ROOM, {
                     meetingId: meetingId,
-                    // data: {
-                    //     sdp: offerDescription.sdp,
-                    //     type: offerDescription.type,
-                    // }
                     data: offerDescription
                 });
             } catch (error) {
