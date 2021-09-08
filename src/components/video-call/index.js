@@ -30,6 +30,10 @@ import VideoContainer from '../video-container';
 import CallControl from '../call-control';
 import SelectDeviceTrigger from '../select-device-trigger';
 
+
+import Feedback from '../feedback';
+
+
 const icBrush = require('../../images/brush.svg').default;
 const icMicSlash = require('../../images/mic-slash.svg').default;
 const icMic = require('../../images/mic.svg').default;
@@ -60,7 +64,6 @@ let isLocalScreenSharingFlag = false
 var candidates = [];
 let socket;
 let soundMeter;
-let isOfferCreated = false;
 
 export const VideoCall = () => {
 
@@ -101,6 +104,8 @@ export const VideoCall = () => {
 
     const [videoDevices, setVideoDevices] = useState([]);
     const [audioDevices, setAudioDevices] = useState([]);
+
+    const [isFeedback, setIsFeedback] = useState(false);
 
     const { token, meetingId, lang } = useParams();
 
@@ -174,13 +179,8 @@ export const VideoCall = () => {
                     // -------------------------------------- //
                     socket.emit(IOEvents.NEW_ANSWER, {
                         newConnection: res.newConnection ?? false,
-                        // data: {
-                        //     type: answerDescription.type,
-                        //     sdp: answerDescription.sdp,
-                        // }
                         data: answerDescription
                     });
-                    isOfferCreated = false;
                 }, 1500);
 
             }
@@ -196,7 +196,6 @@ export const VideoCall = () => {
                 console.log("Starting Call");
                 socket.emit(IOEvents.START_CALL);
             }
-            isOfferCreated = false;
         });
 
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
@@ -369,14 +368,9 @@ export const VideoCall = () => {
 
                 socket.emit(IOEvents.NEW_OFFER, {
                     newConnection: newConnection,
-                    // data: {
-                    //     sdp: offerDescription.sdp,
-                    //     type: offerDescription.type,
-                    // }
                     data: offerDescription
                 });
                 console.log("CREATING RE-NEGOTIATION OFFER");
-                isOfferCreated = true;
             }, 1500);
         }
     }
@@ -611,6 +605,7 @@ export const VideoCall = () => {
         stopSound('sound-calling');
         playSound('sound-call-ended', false)
         closeConnection()
+        if (isCallStarted) setIsFeedback(true)
         resetAllStates()
     }
 
@@ -714,7 +709,6 @@ export const VideoCall = () => {
             toggleMicrophone();
         }
     }, [micDeviceId])
-
 
     function startSoundMeter() {
         console.log("starting sound meter");
@@ -856,9 +850,6 @@ export const VideoCall = () => {
                                             onClick={() => setIsAudioDeviceModelHidden(false)}
                                         />
                                     </CallControl>
-
-
-
                                 </span>
                                 <span
                                     className={isLocalVideoSharing ? "media-device-container" : "media-device-container active"}
@@ -942,6 +933,13 @@ export const VideoCall = () => {
             </div>
 
             <ApplicationSounds />
+
+            <Feedback
+                meetingId={meetingId}
+                token={token}
+                isFeedback={isFeedback}
+                onClose={() => setIsFeedback(false)}
+            />
         </>
     );
 

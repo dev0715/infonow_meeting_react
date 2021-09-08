@@ -12,7 +12,7 @@ export default function SelectDevice(props) {
                 className='model'
                 style={{ display: "flex" }}
             >
-                
+
                 <div className='model-body'>
                     <div className="model-header">
                         <button className="btn-close">
@@ -27,7 +27,6 @@ export default function SelectDevice(props) {
                             options={devicesSelectList(props.devices)}
                             value={devicesSelectList(props.devices).find(x => x.value === props.selectedDevicesId)}
                             onChange={(e) => props.onSelectDevice(e.value)}
-
                         />
                     </div>
                 </div>
