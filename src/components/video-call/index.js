@@ -303,6 +303,7 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.END_CALL, () => {
             console.log(IOEvents.END_CALL)
+            if (isCallStarted) setIsFeedback(true)
             endVideoCall()
         });
 
