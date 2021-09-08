@@ -937,6 +937,7 @@ export const VideoCall = () => {
 
             <Feedback
                 meetingId={meetingId}
+                userType={user.roleId}
                 token={token}
                 isFeedback={isFeedback}
                 onClose={() => setIsFeedback(false)}

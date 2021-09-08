@@ -89,7 +89,7 @@ export default function Feedback(props) {
                             <label >Feedback</label>
                             <textarea
                                 className="form-control-input"
-                                placeholder="What can be improved?"
+                                placeholder={`Describe your interaction with your ${props.userType == 'student' ? 'teacher' : 'student'}...`}
                                 rows={5}
                                 value={message}
                                 onChange={e => setMessage(e.target.value)}
@@ -116,6 +116,7 @@ export default function Feedback(props) {
 
 Feedback.propTypes = {
     isFeedback: PropTypes.bool,
+    userType: PropTypes.string,
     meetingId: PropTypes.string,
     token: PropTypes.string,
     onClose: PropTypes.func
