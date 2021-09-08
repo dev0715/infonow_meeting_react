@@ -474,6 +474,7 @@ body {
 	top: 40%;
 	opacity: 1;
 	transform: scale(1.5);
+	left: calc(50% - 75px);
 	width: 150px;
 	height: 150px;
 }
