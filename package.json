@@ -20,6 +20,7 @@
     "webrtc-adapter": "^8.0.0"
   },
   "scripts": {
+    "serve":"serve -s build -p 1407",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
