@@ -848,7 +848,16 @@ export const VideoCall = () => {
                             </div>
                         }
 
-                        <Whiteboard visible={isLocalBoardOpen} url={boardUrl} onBack={toggleBoard} backIcon={icPhoneOn} />
+                        <Whiteboard
+                            visible={isLocalBoardOpen}
+                            url={boardUrl}
+                            onBack={toggleBoard}
+                            backIcon={icPhoneOn}
+                            isAudioEnabled={isLocalAudioSharing}
+                            isVideoEnabled={isLocalVideoSharing}
+                            onAudioToggle={toggleMicrophone}
+                            onVideoToggle={toggleVideo}
+                        />
 
                         {
                             isCallStarted &&
