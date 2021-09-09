@@ -755,11 +755,6 @@ body {
 }
 
 @media (min-width: 600px) and (max-width: 768px) {
-	#reconnection {
-		width: 30px;
-		height: 30px;
-	}
-
 	#webcamVideo.active {
 		position: absolute;
 		top: 17px;
@@ -794,5 +789,10 @@ body {
 @media (min-width: 200px) and (max-width: 767px) {
 	.screen-share-btn {
 		display: none !important;
+	}
+	#reconnection {
+		width: 30px;
+		height: 30px;
+		padding: 18px;
 	}
 }
