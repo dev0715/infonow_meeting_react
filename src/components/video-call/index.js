@@ -6,7 +6,7 @@ import SelectDevice from '../select-device';
 import io from "socket.io-client"
 import './style.css';
 import { IOEvents } from "./events"
-import { servers, IOConfig } from './config';
+import { servers, IOConfig, Browsers, ScreenSharingConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
 
@@ -19,7 +19,8 @@ import {
     removeAllVideoTracks,
     setNewAudioTrack,
     setNewVideoTrack,
-    closeStreamsAndResetVideo
+    closeStreamsAndResetVideo,
+    setNewTrack
 } from './stream';
 import { audioScale, getNameInitials, playSound, stopSound, toast } from '../../utils';
 import { SoundMeter } from './sound-meter'
@@ -106,6 +107,8 @@ export const VideoCall = () => {
     const [audioDevices, setAudioDevices] = useState([]);
 
     const [isFeedback, setIsFeedback] = useState(false);
+
+    const [browser, setBrowser] = useState('');
 
     const { token, meetingId, lang } = useParams();
 
@@ -687,6 +690,33 @@ export const VideoCall = () => {
 
     useEffect(init, []);
 
+    function detectBrowser() {
+
+        if ((navigator.userAgent.indexOf("Opera") || navigator.userAgent.indexOf('OPR')) != -1) {
+            setBrowser(Browsers.Opera)
+        }
+        else if (navigator.userAgent.indexOf("Chrome") != -1) {
+            setBrowser(Browsers.Chrome)
+        }
+        else if (navigator.userAgent.indexOf("Safari") != -1) {
+            setBrowser(Browsers.Safari)
+        }
+        else if (navigator.userAgent.indexOf("Firefox") != -1) {
+            setBrowser(Browsers.Firefox)
+        }
+        else if ((navigator.userAgent.indexOf("MSIE") != -1) || (!!document.documentMode == true)) //IF IE > 10
+        {
+            setBrowser(Browsers.MSIE)
+        }
+        else {
+            setBrowser('')
+        }
+    }
+
+    useEffect(() => {
+        detectBrowser()
+    }, [])
+
     useEffect(sendInitialEvents, [isCallStarted])
 
     useEffect(() => {
@@ -734,6 +764,39 @@ export const VideoCall = () => {
             soundMeter = null;
         }
         setRemoteAudioReading(0)
+    }
+
+    async function toggleScreenShareWithSafari() {
+        console.log("Safari screen share")
+        try {
+            stopWebcamStream()
+
+            if (isLocalScreenSharingFlag) {
+                removeAllVideoTracks(peerConnection, localStream);
+                webcamVideoRef.current.srcObject = null
+            }
+            else {
+                let stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
+                let track = stream.getVideoTracks()[0].clone();
+                stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
+                track.onended = toggleScreenShare;
+                setNewTrack(peerConnection, localStream, track)
+
+                // let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', null, toggleScreenShare)
+                // if (failed) {
+                //     webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
+                //     throw "Screen Share Cancelled. " + failed
+                // }
+                webcamVideoRef.current.srcObject = localStream
+            }
+
+            isLocalScreenSharingFlag = !isLocalScreenSharingFlag
+            socket.emit(isLocalScreenSharingFlag ? IOEvents.SCREEN_SHARING_ENABLED : IOEvents.SCREEN_SHARING_DISABLED)
+            setLocalScreenSharing(isLocalScreenSharingFlag)
+
+        } catch (error) {
+            console.log("Screen Toggle Safari Error", error)
+        }
     }
 
     return (
@@ -872,7 +935,7 @@ export const VideoCall = () => {
                                     <>
                                         <CallControl
                                             visible={true}
-                                            onClick={toggleScreenShare}
+                                            onClick={browser === Browsers.Safari ? toggleScreenShareWithSafari : toggleScreenShare}
                                             icon={isLocalScreenSharing ? icScreenSharingSlash : icScreenSharing}
                                         />
 

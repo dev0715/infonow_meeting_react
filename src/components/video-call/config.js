@@ -54,3 +54,12 @@ export const ScreenSharingConfig = {
         displaySurface: "application" | "browser" | "monitor" | "window",
     }
 };
+
+
+export const Browsers = {
+    Opera: 'Opera',
+    Chrome: 'Chrome',
+    Safari: 'Safari',
+    Firefox: 'Firefox',
+    MSIE: 'MSIE'
+}

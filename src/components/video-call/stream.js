@@ -84,7 +84,7 @@ export async function setNewAudioTrack(peerConnection, stream, deviceId) {
 
 }
 
-async function setNewTrack(peerConnection, stream, track) {
+export async function setNewTrack(peerConnection, stream, track) {
     stream.addTrack(track);
     if (peerConnection) {
         const senders = peerConnection.getSenders();
@@ -179,7 +179,7 @@ async function isMediaAvailable(kind) {
     let md = navigator.mediaDevices;
     if (!md || !md.enumerateDevices) return false;
     let devices = await md.enumerateDevices();
-    return !!devices.find(d=>d.kind === kind && d.deviceId)
+    return !!devices.find(d => d.kind === kind && d.deviceId)
 }
 
 export async function isCameraAvailable() {
@@ -198,7 +198,7 @@ export async function isAudioAvailable() {
  * @param {string} descriptor 
  * 
  */
-export function closeStreamsAndResetVideo(peerConnection, stream, videoRef, descriptor="remote") {
+export function closeStreamsAndResetVideo(peerConnection, stream, videoRef, descriptor = "remote") {
     try {
 
         console.log(`Closing '${descriptor}' stream and reseting relevant Stream Element`);
@@ -211,3 +211,4 @@ export function closeStreamsAndResetVideo(peerConnection, stream, videoRef, desc
         console.warn(`Closing '${descriptor}' stream Failed: `, error)
     }
 }
+
