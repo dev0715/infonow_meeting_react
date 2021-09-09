@@ -152,6 +152,7 @@ body {
 	font-weight: 700;
 	border: none;
 	outline: none;
+	cursor: pointer;
 }
 
 #joinBtn.calling {
@@ -315,6 +316,7 @@ body {
 	justify-content: center;
 	border: none;
 	outline: none;
+	cursor: pointer;
 }
 
 .device-selector:focus {
