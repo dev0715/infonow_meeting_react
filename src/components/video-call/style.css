@@ -167,6 +167,7 @@ body {
 
 #joinBtn:disabled {
 	background: #3d7943;
+	cursor: not-allowed;
 }
 
 #my-user-info div {
