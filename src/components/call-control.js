@@ -9,7 +9,7 @@ export default function CallControl(props) {
                 <>
                     <button
                         id={props.id}
-                        className="operation-btn"
+                        className={`operation-btn ${props.className}`}
                         onClick={props.onClick}
                         disabled={props.disabled}
                     >

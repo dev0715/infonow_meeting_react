@@ -934,6 +934,7 @@ export const VideoCall = () => {
                                     isCallStarted &&
                                     <>
                                         <CallControl
+                                            className='screen-share-btn'
                                             visible={true}
                                             onClick={browser === Browsers.Safari ? toggleScreenShareWithSafari : toggleScreenShare}
                                             icon={isLocalScreenSharing ? icScreenSharingSlash : icScreenSharing}
