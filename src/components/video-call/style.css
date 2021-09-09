@@ -613,6 +613,8 @@ body {
 	align-items: center;
 	text-align: center;
 	justify-content: center;
+	outline: none;
+	cursor: pointer;
 }
 
 .whiteBoardContainer > .btn-call > .actions > button > img {
