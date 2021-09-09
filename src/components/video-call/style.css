@@ -585,6 +585,7 @@ body {
 	outline: none;
 	border: none;
 	z-index: 3001;
+	cursor: pointer;
 }
 
 .whiteBoardContainer > .btn-call > button > img {
