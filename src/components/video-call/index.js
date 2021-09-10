@@ -168,11 +168,11 @@ export const VideoCall = () => {
             console.log(IOEvents.NEW_OFFER, res);
             if (res.data) {
 
-                if (res.newConnection) {
-                    console.log("Creating new PeerConnection")
-                    if (peerConnection) peerConnection.close()
-                    initPeerConnection()
-                }
+                // if (res.newConnection) {
+                console.log("Creating new PeerConnection")
+                if (peerConnection) peerConnection.close()
+                initPeerConnection()
+                // }
                 setTimeout(async () => {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
                     const answerDescription = await peerConnection.createAnswer();
@@ -181,7 +181,7 @@ export const VideoCall = () => {
                     // --------------SEND ANSWER------------- //
                     // -------------------------------------- //
                     socket.emit(IOEvents.NEW_ANSWER, {
-                        newConnection: res.newConnection ?? false,
+                        newConnection: true, // res.newConnection || false,
                         data: answerDescription
                     });
                 }, 1500);
@@ -194,11 +194,13 @@ export const VideoCall = () => {
             if (res.data) {
                 console.log(IOEvents.NEW_ANSWER);
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-            }
-            if (res.newConnection) {
-                console.log("Starting Call");
+                // TODO:  testing
                 socket.emit(IOEvents.START_CALL);
             }
+            // if (res.newConnection) {
+            //     console.log("Starting Call");
+            //     socket.emit(IOEvents.START_CALL);
+            // }
         });
 
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
