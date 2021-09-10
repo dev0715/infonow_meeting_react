@@ -383,7 +383,7 @@ export const VideoCall = () => {
 
     const triggerEndCallWithChannel = () => {
         try {
-            if (peerConnection && dataChannel) dataChannel.send("END");
+            if (dataChannel) dataChannel.send("END");
         } catch (error) {
             console.log("CLOSING_CALL_WITH_CHANNEL_ERROR", error)
         }
