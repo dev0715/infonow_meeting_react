@@ -306,8 +306,11 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.END_CALL, () => {
             console.log(IOEvents.END_CALL)
-            setIsFeedback(true)
-            endVideoCall()
+        });
+
+        socket.on(IOEvents.CALL_ENDED, (res) => {
+            console.log(IOEvents.CALL_ENDED, res)
+            callEnded()
         });
 
         socket.on(IOEvents.MUTE_AUDIO, () => {
@@ -606,6 +609,9 @@ export const VideoCall = () => {
 
     function endVideoCall() {
         socket.emit(IOEvents.END_CALL);
+    }
+
+    const callEnded = () => {
         stopSound('sound-calling');
         playSound('sound-call-ended', false)
         closeConnection()
@@ -719,13 +725,13 @@ export const VideoCall = () => {
 
     useEffect(sendInitialEvents, [isCallStarted])
 
-    useEffect(() => {
-        console.log("IS_LOCAL_SCREEN_SHARING", isLocalScreenSharing, isLocalScreenSharingFlag)
-    }, [isLocalScreenSharing, isLocalVideoSharing])
+    // useEffect(() => {
+    //     console.log("IS_LOCAL_SCREEN_SHARING", isLocalScreenSharing, isLocalScreenSharingFlag)
+    // }, [isLocalScreenSharing, isLocalVideoSharing])
 
-    useEffect(() => {
-        console.log("IS_LOCAL_VIDEO_SHARING", isLocalVideoSharing)
-    }, [isLocalVideoSharing])
+    // useEffect(() => {
+    //     console.log("IS_LOCAL_VIDEO_SHARING", isLocalVideoSharing)
+    // }, [isLocalVideoSharing])
 
     useEffect(updateDevices, [isLocalAudioSharing, isLocalVideoSharing])
 
