@@ -269,10 +269,6 @@ export const VideoCall = () => {
                     // ---------------SEND ANSWER------------- //
                     // --------------------------------------- //
                     socket.emit(IOEvents.ANSWER_CALL, {
-                        // data: {
-                        //     type: answerDescription.type,
-                        //     sdp: answerDescription.sdp,
-                        // }
                         data: answerDescription
                     });
                 }
@@ -360,11 +356,11 @@ export const VideoCall = () => {
         });
     }
 
-    function endCallOnReload() {
-        console.log("Page Reloading")
-        // socket.emit(IOEvents.END_CALL)
-        window.removeEventListener("beforeunload", endCallOnReload);
-    }
+    // function endCallOnReload() {
+    //     console.log("Page Reloading")
+    //     // socket.emit(IOEvents.END_CALL)
+    //     window.removeEventListener("beforeunload", endCallOnReload);
+    // }
 
     async function createOffer(newConnection = false) {
         if (peerConnection) {
@@ -423,10 +419,10 @@ export const VideoCall = () => {
 
     function setupIceEventOnStartCall() {
 
-        console.log("SETUP_ICE_EVENT_ON_START_CALL");
+        // console.log("SETUP_ICE_EVENT_ON_START_CALL");
 
         candidates.forEach(c => {
-            console.log("ICE_ARRAY_EVENT")
+            // console.log("ICE_ARRAY_EVENT")
             socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
                 data: c
             });
@@ -434,7 +430,7 @@ export const VideoCall = () => {
 
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log("LOCAL_ICE_EVENT",)
+                // console.log("LOCAL_ICE_EVENT",)
                 socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
                     data: event.candidate.toJSON()
                 });
@@ -454,11 +450,11 @@ export const VideoCall = () => {
     }
 
     function setupIceEventBeforeStartCall() {
-        console.log("SETUP_ICE_EVENT_BEFORE_START_CALL");
+        // console.log("SETUP_ICE_EVENT_BEFORE_START_CALL");
         candidates = []
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log("ICE_EVENT_BEFORE_START_CALL")
+                // console.log("ICE_EVENT_BEFORE_START_CALL")
                 candidates.push(event.candidate.toJSON())
             }
         };
@@ -662,7 +658,7 @@ export const VideoCall = () => {
     }
 
     async function selectMicDevice(deviceId) {
-        console.log("SELECTED_MIC_DEVICE_ID", deviceId)
+        // console.log("SELECTED_MIC_DEVICE_ID", deviceId)
         setMicDeviceId(deviceId)
         setIsAudioDeviceModelHidden(true)
         if (isLocalAudioSharing) {
@@ -671,7 +667,7 @@ export const VideoCall = () => {
     }
 
     async function selectCameraDevice(deviceId) {
-        console.log("SELECTED_CAMERA_DEVICE_ID", deviceId)
+        // console.log("SELECTED_CAMERA_DEVICE_ID", deviceId)
         setCameraDeviceId(deviceId)
         setIsVideoDeviceModelHidden(true)
         if (isLocalVideoSharing) {
