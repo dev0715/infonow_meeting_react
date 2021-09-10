@@ -434,8 +434,6 @@ export const VideoCall = () => {
             remoteStream = new MediaStream();
 
             setupIceEventBeforeStartCall()
-
-            peerConnection.onnegotiationneeded = () => createOffer(false);
             // Push tracks from local stream to peer connection
             localStream.getTracks().forEach((track) => {
                 peerConnection.addTrack(track, localStream);
@@ -552,8 +550,10 @@ export const VideoCall = () => {
         if (socket && isCallStarted) {
             socket.emit(isLocalAudioSharing ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
             socket.emit(isLocalVideoSharing ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
-            if (peerConnection)
+            if (peerConnection) {
+                peerConnection.onnegotiationneeded = () => createOffer(false);
                 setDataChannel(peerConnection.createDataChannel(meetingId, { negotiated: true, id: 0 }))
+            }
         }
     }
 
