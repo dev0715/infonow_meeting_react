@@ -310,6 +310,7 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.CALL_ENDED, (res) => {
             console.log(IOEvents.CALL_ENDED, res)
+            setIsFeedback(true)
             callEnded()
         });
 
@@ -626,7 +627,7 @@ export const VideoCall = () => {
         stopSound('sound-calling');
         playSound('sound-call-ended', false)
         closeConnection()
-        if (isCallStarted) setIsFeedback(true)
+        if (isCallStarted && !isFeedback) setIsFeedback(true)
         resetAllStates()
     }
 
