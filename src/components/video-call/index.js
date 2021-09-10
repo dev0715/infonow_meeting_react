@@ -451,7 +451,8 @@ export const VideoCall = () => {
         peerConnection.oniceconnectionstatechange = async function () {
             // "checking" | "closed" | "completed" | "connected" | "disconnected" | "failed" | "new";
             console.log(`PeerConnection status: ${peerConnection.iceConnectionState}`)
-            if (peerConnection) setIsReconnecting(peerConnection.iceConnectionState !== 'connected');
+
+            if (peerConnection) setIsReconnecting(!(peerConnection.iceConnectionState == 'connected' || peerConnection.iceConnectionState == 'completed'));
             if (peerConnection.iceConnectionState === "disconnected") {
                 createOffer(false);
             }
@@ -633,6 +634,7 @@ export const VideoCall = () => {
 
     function resetAllStates() {
         setFirstAttempt(true)
+        setIsReconnecting(false)
         setJoined(false)
         setCalling(false)
         setCallStarted(false)
