@@ -173,7 +173,7 @@ export const VideoCall = () => {
         socket.on(IOEvents.RECONNECTING, async (res) => {
             if (res.success) {
                 toast("Reconnected")
-                peerConnection.close();
+
                 initPeerConnection()
                 await createOffer(true)
             } else {
@@ -187,7 +187,7 @@ export const VideoCall = () => {
 
                 if (res.newConnection) {
                     console.log("Creating new PeerConnection")
-                    if (peerConnection) peerConnection.close()
+                    if (peerConnection) peerConnection = null;
                     initPeerConnection()
                 }
                 setTimeout(async () => {
@@ -232,7 +232,7 @@ export const VideoCall = () => {
             console.log(IOEvents.CREATE_ROOM)
             if (isFirstAttempt) {
                 setFirstAttempt(false)
-                peerConnection.close()
+                peerConnection = null
                 setTimeout(() => {
                     startVideoCall()
                 }, 200);
@@ -244,7 +244,7 @@ export const VideoCall = () => {
 
         socket.on(IOEvents.ROOM_EXIST, function () {
             console.log(IOEvents.ROOM_EXIST)
-            peerConnection.close()
+            peerConnection = null
             setTimeout(() => {
                 initPeerConnection()
                 joinRoom()
