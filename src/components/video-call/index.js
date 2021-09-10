@@ -440,9 +440,6 @@ export const VideoCall = () => {
             peerConnection.ontrack = (event) => {
                 event.streams[0].getTracks().forEach((track) => {
                     console.log("NEW " + track.kind + " TRACK ADDED TO REMOTE STREAM");
-                    if (!isCallStarted) {
-                        setCallStarted(true);
-                    }
                     remoteStream.addTrack(track);
                 });
             };
@@ -688,6 +685,8 @@ export const VideoCall = () => {
 
         setRemoteUser({})
         setTimeout(initLocalStream, 100)
+
+        setDataChannel(null)
     }
 
     function isVideoInNormalState() {
