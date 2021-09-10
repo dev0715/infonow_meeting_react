@@ -120,6 +120,11 @@ export const VideoCall = () => {
                 console.log("Data Channel Opened")
             };
 
+            dataChannel.onclose = () => {
+                console.log("Data Channel closed")
+                setDataChannel(null)
+            }
+
             dataChannel.onmessage = e => {
                 console.log("DATA_CHANNEL_MESSAGE", e)
                 if (e.data === "END")
