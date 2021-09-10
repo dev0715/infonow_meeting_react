@@ -650,7 +650,7 @@ export const VideoCall = () => {
 
     function endVideoCall() {
         triggerEndCallWithChannel()
-        if (!isJoined) callEnded()
+        callEnded()
         socket.emit(IOEvents.END_CALL);
 
     }
