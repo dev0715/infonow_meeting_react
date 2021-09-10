@@ -120,10 +120,11 @@ export const VideoCall = () => {
                 console.log("Data Channel Opened")
             };
 
-            dataChannel.onclose = () => {
-                console.log("Data Channel closed")
-                endVideoCall()
-            };
+            dataChannel.onmessage = e => {
+                console.log("DATA_CHANNEL_MESSAGE", e)
+                if (e.data === "END")
+                    endVideoCall()
+            }
 
         }
     }, [dataChannel])
@@ -190,16 +191,21 @@ export const VideoCall = () => {
                     initPeerConnection()
                 }
                 setTimeout(async () => {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-                    const answerDescription = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answerDescription);
-                    // -------------------------------------- //
-                    // --------------SEND ANSWER------------- //
-                    // -------------------------------------- //
-                    socket.emit(IOEvents.NEW_ANSWER, {
-                        newConnection: res.newConnection || false,
-                        data: answerDescription
-                    });
+                    try {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                        const answerDescription = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answerDescription);
+                        // -------------------------------------- //
+                        // --------------SEND ANSWER------------- //
+                        // -------------------------------------- //
+                        socket.emit(IOEvents.NEW_ANSWER, {
+                            newConnection: res.newConnection || false,
+                            data: answerDescription
+                        });
+                    } catch (error) {
+                        console.log("CREATE_ANSWER_ERROR", error)
+                    }
+
                 }, 1500);
 
             }
@@ -372,6 +378,15 @@ export const VideoCall = () => {
         console.log("Page Reloading")
         socket.emit(IOEvents.END_CALL)
         window.removeEventListener("beforeunload", endCallOnReload);
+        triggerEndCallWithChannel()
+    }
+
+    const triggerEndCallWithChannel = () => {
+        try {
+            if (peerConnection && dataChannel) dataChannel.send("END");
+        } catch (error) {
+            console.log("CLOSING_CALL_WITH_CHANNEL_ERROR", error)
+        }
     }
 
     async function createOffer(newConnection = false) {
@@ -379,17 +394,22 @@ export const VideoCall = () => {
             if (peerConnection) {
                 if (newConnection) initPeerConnection();
                 setTimeout(async () => {
-                    const offerDescription = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offerDescription);
-                    socket.emit(IOEvents.NEW_OFFER, {
-                        newConnection: newConnection,
-                        data: offerDescription
-                    });
-                    console.log("CREATING RE-NEGOTIATION OFFER");
+                    try {
+                        const offerDescription = await peerConnection.createOffer();
+                        await peerConnection.setLocalDescription(offerDescription);
+                        socket.emit(IOEvents.NEW_OFFER, {
+                            newConnection: newConnection,
+                            data: offerDescription
+                        });
+                        console.log("CREATING RE-NEGOTIATION OFFER");
+                    } catch (error) {
+                        console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR_INNER", error)
+                    }
+
                 }, 1500);
             }
         } catch (error) {
-            console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR")
+            console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR", error)
         }
 
     }
@@ -480,7 +500,6 @@ export const VideoCall = () => {
     function closeConnection() {
         closeStreamsAndResetVideo(peerConnection, remoteStream, remoteVideoRef, 'remote');
         closeStreamsAndResetVideo(peerConnection, localStream, webcamVideoRef, 'local');
-        peerConnection.close();
         peerConnection = null
     }
 
@@ -626,8 +645,10 @@ export const VideoCall = () => {
     }
 
     function endVideoCall() {
+        triggerEndCallWithChannel()
         if (!isJoined) callEnded()
         socket.emit(IOEvents.END_CALL);
+
     }
 
     const callEnded = () => {
