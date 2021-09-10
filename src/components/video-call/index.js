@@ -381,9 +381,10 @@ export const VideoCall = () => {
 
     function endCallOnReload() {
         console.log("Page Reloading")
+        triggerEndCallWithChannel()
         socket.emit(IOEvents.END_CALL)
         window.removeEventListener("beforeunload", endCallOnReload);
-        triggerEndCallWithChannel()
+
     }
 
     const triggerEndCallWithChannel = () => {
