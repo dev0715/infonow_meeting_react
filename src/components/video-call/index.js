@@ -168,11 +168,11 @@ export const VideoCall = () => {
             console.log(IOEvents.NEW_OFFER, res);
             if (res.data) {
 
-                // if (res.newConnection) {
-                console.log("Creating new PeerConnection")
-                if (peerConnection) peerConnection.close()
-                initPeerConnection()
-                // }
+                if (res.newConnection) {
+                    console.log("Creating new PeerConnection")
+                    if (peerConnection) peerConnection.close()
+                    initPeerConnection()
+                }
                 setTimeout(async () => {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
                     const answerDescription = await peerConnection.createAnswer();
@@ -181,7 +181,7 @@ export const VideoCall = () => {
                     // --------------SEND ANSWER------------- //
                     // -------------------------------------- //
                     socket.emit(IOEvents.NEW_ANSWER, {
-                        newConnection: true, // res.newConnection || false,
+                        newConnection: res.newConnection || false,
                         data: answerDescription
                     });
                 }, 1500);
@@ -194,13 +194,11 @@ export const VideoCall = () => {
             if (res.data) {
                 console.log(IOEvents.NEW_ANSWER);
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-                // TODO:  testing
+            }
+            if (res.newConnection) {
+                console.log("Starting Call");
                 socket.emit(IOEvents.START_CALL);
             }
-            // if (res.newConnection) {
-            //     console.log("Starting Call");
-            //     socket.emit(IOEvents.START_CALL);
-            // }
         });
 
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
@@ -410,6 +408,9 @@ export const VideoCall = () => {
             peerConnection.ontrack = (event) => {
                 event.streams[0].getTracks().forEach((track) => {
                     console.log("NEW " + track.kind + " TRACK ADDED TO REMOTE STREAM");
+                    if (!isCallStarted) {
+                        setCallStarted(true);
+                    }
                     remoteStream.addTrack(track);
                 });
             };
@@ -790,11 +791,6 @@ export const VideoCall = () => {
                 track.onended = toggleScreenShare;
                 setNewTrack(peerConnection, localStream, track)
 
-                // let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', null, toggleScreenShare)
-                // if (failed) {
-                //     webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
-                //     throw "Screen Share Cancelled. " + failed
-                // }
                 webcamVideoRef.current.srcObject = localStream
             }
 
