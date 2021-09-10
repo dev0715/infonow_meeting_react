@@ -112,6 +112,22 @@ export const VideoCall = () => {
 
     const { token, meetingId, lang } = useParams();
 
+    const [dataChannel, setDataChannel] = useState(null)
+
+    useEffect(() => {
+        if (dataChannel) {
+            dataChannel.onopen = () => {
+                console.log("Data Channel Opened")
+            };
+
+            dataChannel.onclose = () => {
+                console.log("Data Channel closed")
+                endVideoCall()
+            };
+
+        }
+    }, [dataChannel])
+
     const endCallCallback = (event, res) => {
         console.log(event, res)
         if (res.message) toast(res.message)
@@ -192,7 +208,6 @@ export const VideoCall = () => {
         socket.on(IOEvents.NEW_ANSWER, res => {
             console.log(IOEvents.NEW_ANSWER, res);
             if (res.data) {
-                console.log(IOEvents.NEW_ANSWER);
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
             }
             if (res.newConnection) {
@@ -235,7 +250,6 @@ export const VideoCall = () => {
             console.log(IOEvents.CREATE_ICE_EVENT_DATA, res)
             try {
                 if (res.data) {
-                    console.log(IOEvents.CREATE_ICE_EVENT_DATA);
                     const candidate = new RTCIceCandidate(res.data);
                     try { peerConnection.addIceCandidate(candidate); } catch (err) { }
                 }
@@ -250,8 +264,6 @@ export const VideoCall = () => {
                 setRemoteUser(res.user)
             }
             if (!peerConnection.currentRemoteDescription && res.answer) {
-                console.log(IOEvents.RECEIVE_ANSWER);
-
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.answer));
                 socket.emit(IOEvents.START_CALL);
             }
@@ -356,33 +368,37 @@ export const VideoCall = () => {
         });
     }
 
-    // function endCallOnReload() {
-    //     console.log("Page Reloading")
-    //     // socket.emit(IOEvents.END_CALL)
-    //     window.removeEventListener("beforeunload", endCallOnReload);
-    // }
+    function endCallOnReload() {
+        console.log("Page Reloading")
+        socket.emit(IOEvents.END_CALL)
+        window.removeEventListener("beforeunload", endCallOnReload);
+    }
 
     async function createOffer(newConnection = false) {
-        if (peerConnection) {
-            if (newConnection) initPeerConnection();
-            setTimeout(async () => {
-                const offerDescription = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offerDescription);
-
-                socket.emit(IOEvents.NEW_OFFER, {
-                    newConnection: newConnection,
-                    data: offerDescription
-                });
-                console.log("CREATING RE-NEGOTIATION OFFER");
-            }, 1500);
+        try {
+            if (peerConnection) {
+                if (newConnection) initPeerConnection();
+                setTimeout(async () => {
+                    const offerDescription = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offerDescription);
+                    socket.emit(IOEvents.NEW_OFFER, {
+                        newConnection: newConnection,
+                        data: offerDescription
+                    });
+                    console.log("CREATING RE-NEGOTIATION OFFER");
+                }, 1500);
+            }
+        } catch (error) {
+            console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR")
         }
+
     }
 
     async function init() {
         initSocket()
         updateDevices()
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
-        // window.addEventListener("beforeunload", endCallOnReload)
+        window.addEventListener("beforeunload", endCallOnReload)
         initLocalStream()
     }
 
@@ -464,6 +480,7 @@ export const VideoCall = () => {
     function closeConnection() {
         closeStreamsAndResetVideo(peerConnection, remoteStream, remoteVideoRef, 'remote');
         closeStreamsAndResetVideo(peerConnection, localStream, webcamVideoRef, 'local');
+        peerConnection.close();
         peerConnection = null
     }
 
@@ -514,6 +531,8 @@ export const VideoCall = () => {
         if (socket && isCallStarted) {
             socket.emit(isLocalAudioSharing ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
             socket.emit(isLocalVideoSharing ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
+            if (peerConnection)
+                setDataChannel(peerConnection.createDataChannel(meetingId, { negotiated: true, id: 0 }))
         }
     }
 
@@ -607,6 +626,7 @@ export const VideoCall = () => {
     }
 
     function endVideoCall() {
+        if (!isJoined) callEnded()
         socket.emit(IOEvents.END_CALL);
     }
 
@@ -723,14 +743,6 @@ export const VideoCall = () => {
     }, [])
 
     useEffect(sendInitialEvents, [isCallStarted])
-
-    // useEffect(() => {
-    //     console.log("IS_LOCAL_SCREEN_SHARING", isLocalScreenSharing, isLocalScreenSharingFlag)
-    // }, [isLocalScreenSharing, isLocalVideoSharing])
-
-    // useEffect(() => {
-    //     console.log("IS_LOCAL_VIDEO_SHARING", isLocalVideoSharing)
-    // }, [isLocalVideoSharing])
 
     useEffect(updateDevices, [isLocalAudioSharing, isLocalVideoSharing])
 
