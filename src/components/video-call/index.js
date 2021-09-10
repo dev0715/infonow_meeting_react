@@ -362,7 +362,7 @@ export const VideoCall = () => {
 
     function endCallOnReload() {
         console.log("Page Reloading")
-        socket.emit(IOEvents.END_CALL)
+        // socket.emit(IOEvents.END_CALL)
         window.removeEventListener("beforeunload", endCallOnReload);
     }
 
@@ -386,7 +386,7 @@ export const VideoCall = () => {
         initSocket()
         updateDevices()
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
-        window.addEventListener("beforeunload", endCallOnReload)
+        // window.addEventListener("beforeunload", endCallOnReload)
         initLocalStream()
     }
 
@@ -615,7 +615,7 @@ export const VideoCall = () => {
         stopSound('sound-calling');
         playSound('sound-call-ended', false)
         closeConnection()
-        if (isCallStarted && !isFeedback) setIsFeedback(true)
+        if (isCallStarted) setIsFeedback(true)
         resetAllStates()
     }
 
