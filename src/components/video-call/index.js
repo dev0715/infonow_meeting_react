@@ -112,27 +112,7 @@ export const VideoCall = () => {
 
     const { token, meetingId, lang } = useParams();
 
-    const [dataChannel, setDataChannel] = useState(null)
 
-    useEffect(() => {
-        if (dataChannel) {
-            dataChannel.onopen = () => {
-                console.log("Data Channel Opened")
-            };
-
-            dataChannel.onclose = () => {
-                console.log("Data Channel closed")
-                setDataChannel(null)
-            }
-
-            dataChannel.onmessage = e => {
-                console.log("DATA_CHANNEL_MESSAGE", e)
-                if (e.data === "END")
-                    endVideoCall()
-            }
-
-        }
-    }, [dataChannel])
 
     const endCallCallback = (event, res) => {
         console.log(event, res)
@@ -178,7 +158,7 @@ export const VideoCall = () => {
         socket.on(IOEvents.RECONNECTING, async (res) => {
             if (res.success) {
                 toast("Reconnected")
-
+                peerConnection = null
                 initPeerConnection()
                 await createOffer(true)
             } else {
@@ -382,18 +362,9 @@ export const VideoCall = () => {
 
     function endCallOnReload() {
         console.log("Page Reloading")
-        triggerEndCallWithChannel()
         socket.emit(IOEvents.END_CALL)
         window.removeEventListener("beforeunload", endCallOnReload);
 
-    }
-
-    const triggerEndCallWithChannel = () => {
-        try {
-            if (dataChannel) dataChannel.send("END");
-        } catch (error) {
-            console.log("CLOSING_CALL_WITH_CHANNEL_ERROR", error)
-        }
     }
 
     async function createOffer(newConnection = false) {
@@ -441,6 +412,7 @@ export const VideoCall = () => {
                 peerConnection.addTrack(track, localStream);
             });
 
+            peerConnection.onnegotiationneeded = () => createOffer(false);
             // Pull tracks from remote stream, add to video stream
             peerConnection.ontrack = (event) => {
                 event.streams[0].getTracks().forEach((track) => {
@@ -552,15 +524,11 @@ export const VideoCall = () => {
         if (socket && isCallStarted) {
             socket.emit(isLocalAudioSharing ? IOEvents.UNMUTE_AUDIO : IOEvents.MUTE_AUDIO)
             socket.emit(isLocalVideoSharing ? IOEvents.UNMUTE_VIDEO : IOEvents.MUTE_VIDEO)
-            if (peerConnection) {
-                peerConnection.onnegotiationneeded = () => createOffer(false);
-                setDataChannel(peerConnection.createDataChannel(meetingId, { negotiated: true, id: 0 }))
-            }
         }
     }
 
     async function toggleMicrophone() {
-        console.log("MIC_ID", micDeviceId)
+
         try {
             if (isLocalAudioSharing) {
                 removeAllAudioTracks(peerConnection, localStream);
@@ -649,7 +617,6 @@ export const VideoCall = () => {
     }
 
     function endVideoCall() {
-        triggerEndCallWithChannel()
         callEnded()
         socket.emit(IOEvents.END_CALL);
 
@@ -692,8 +659,6 @@ export const VideoCall = () => {
 
         setRemoteUser({})
         setTimeout(initLocalStream, 100)
-
-        setDataChannel(null)
     }
 
     function isVideoInNormalState() {
