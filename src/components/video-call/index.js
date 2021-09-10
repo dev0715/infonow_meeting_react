@@ -320,6 +320,7 @@ export const VideoCall = () => {
             stopSound('sound-calling');
             playSound('sound-call-started', false);
             setupIceEventOnStartCall()
+            if (isCallStarted) return sendInitialEvents()
             setCallStarted(true)
         });
 
