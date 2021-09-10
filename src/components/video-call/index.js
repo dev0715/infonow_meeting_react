@@ -181,7 +181,7 @@ export const VideoCall = () => {
                     // --------------SEND ANSWER------------- //
                     // -------------------------------------- //
                     socket.emit(IOEvents.NEW_ANSWER, {
-                        newConnection: res.newConnection ?? false,
+                        newConnection: res.newConnection || false,
                         data: answerDescription
                     });
                 }, 1500);
@@ -408,6 +408,9 @@ export const VideoCall = () => {
             peerConnection.ontrack = (event) => {
                 event.streams[0].getTracks().forEach((track) => {
                     console.log("NEW " + track.kind + " TRACK ADDED TO REMOTE STREAM");
+                    if (!isCallStarted) {
+                        setCallStarted(true);
+                    }
                     remoteStream.addTrack(track);
                 });
             };
@@ -788,11 +791,6 @@ export const VideoCall = () => {
                 track.onended = toggleScreenShare;
                 setNewTrack(peerConnection, localStream, track)
 
-                // let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', null, toggleScreenShare)
-                // if (failed) {
-                //     webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
-                //     throw "Screen Share Cancelled. " + failed
-                // }
                 webcamVideoRef.current.srcObject = localStream
             }
 
