@@ -9,7 +9,7 @@ import { IOEvents } from "./events"
 import { servers, IOConfig, Browsers, ScreenSharingConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
-
+import Peer, { SimplePeer } from 'simple-peer';
 import {
     getAudioMediaDevices,
     getVideoMediaDevices,
@@ -51,7 +51,7 @@ const icTimes = require('../../images/times.svg').default;
 
 
 // Global State
-/**@type {RTCPeerConnection} */
+/**@type {SimplePeer} */
 let peerConnection = null;
 
 /**@type {MediaStream} */
@@ -234,7 +234,6 @@ export const VideoCall = () => {
                 initPeerConnection()
                 joinRoom()
             }, 200);
-
         });
 
         socket.on(IOEvents.CREATE_ICE_EVENT_DATA, (res) => {
@@ -403,6 +402,7 @@ export const VideoCall = () => {
 
     function initPeerConnection() {
         try {
+
             // Global State
             peerConnection = new RTCPeerConnection(servers);
             remoteStream = new MediaStream();
@@ -423,6 +423,8 @@ export const VideoCall = () => {
             };
 
             remoteVideoRef.current.srcObject = remoteStream
+
+
         } catch (error) {
             console.log("INIT_PEER_CONNECTION_ERROR", error)
         }

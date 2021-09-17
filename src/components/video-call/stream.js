@@ -86,6 +86,7 @@ export async function setNewAudioTrack(peerConnection, stream, deviceId) {
 
 export async function setNewTrack(peerConnection, stream, track) {
     stream.addTrack(track);
+    // TODO: Replace the Track in peerconnection if not displayed correctly
     if (peerConnection) {
         const senders = peerConnection.getSenders();
         let t = senders.filter(x => x.track).find(s => s.track.kind === track.kind);
