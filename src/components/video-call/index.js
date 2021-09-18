@@ -351,12 +351,12 @@ export const VideoCall = () => {
 
     async function reconnectCall() {
         try {
-            if (isCallStarted && peerConnection && socket.connected) {
+            if (peerConnection && socket.connected) {
                 peerConnection.restartIce();
                 createOffer(); 
             }
             else {
-                throw `Cannot reconnect | callStarted: ${isCallStarted} | live: ${socket.connected}`;
+                throw `Cannot reconnect | live: ${socket.connected}`;
             }
         }
         catch (err) {
