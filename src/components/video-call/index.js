@@ -181,7 +181,14 @@ export const VideoCall = () => {
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
             }
         })
-        
+
+        socket.on(IOEvents.OFFER, res => {
+            console.log(IOEvents.OFFER, res);
+            if (res.data) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+            }
+        })
+
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
         socket.on(IOEvents.INVALID_PARTICIPANT, res => endCallCallback(IOEvents.INVALID_PARTICIPANT, res));
         socket.on(IOEvents.MEETING_NOT_FOUND, res => endCallCallback(IOEvents.MEETING_NOT_FOUND, res));
@@ -725,7 +732,7 @@ export const VideoCall = () => {
                 <div id="overlay"></div>
             }
 
-            <div style={{ display: !true ? 'none' : 'unset' }} id="reconnection"><img alt="" src={icConnecting} /></div>
+            <div style={{ display: !isReconnecting ? 'none' : 'unset' }} id="reconnection"><img alt="" src={icConnecting} /></div>
 
             {
                 !isAuthorized &&
