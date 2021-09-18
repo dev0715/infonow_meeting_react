@@ -74,7 +74,7 @@ export default function Feedback(props) {
                         <h3>How was your experience?</h3>
                     </div>
                     <div className="model-content">
-                        <div className="rating-container">
+                        <div className="rating-container mb-2">
                             <StarRatings
                                 rating={rating}
                                 changeRating={(r, name) => setRating(r)}

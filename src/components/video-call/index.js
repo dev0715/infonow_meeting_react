@@ -138,14 +138,6 @@ export const VideoCall = () => {
                 setUser(res.data);
                 initLocalStream();
                 if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 1000);
-                // setCallStarted(isCallStarted => {
-                //     if (isCallStarted) {
-                //         console.log("RECONNECTING");
-                //         socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
-                //         setTimeout(() => createOffer(false), 1000);
-                //     }
-                //     return isCallStarted;
-                // })
             }
             else {
                 setAuthorized(false)
@@ -153,18 +145,6 @@ export const VideoCall = () => {
                 toast("You are not authorized")
             }
         });
-
-        // socket.on(IOEvents.RECONNECTING, async (res) => {
-        //     if (res.success) {
-        //         toast("Reconnected")
-        //         if (peerConnection) {
-        //             peerConnection.restartIce();
-        //             createOffer(true)
-        //         }
-        //     } else {
-        //         endVideoCall()
-        //     }
-        // })
 
         socket.on(IOEvents.NEW_OFFER, async (res) => {
             console.log(IOEvents.NEW_OFFER, res);
@@ -739,34 +719,6 @@ export const VideoCall = () => {
         }
         setRemoteAudioReading(0)
     }
-
-    // async function toggleScreenShareWithSafari() {
-    //     console.log("Safari screen share")
-    //     try {
-    //         stopWebcamStream()
-
-    //         if (isLocalScreenSharingFlag) {
-    //             removeAllVideoTracks(peerConnection, localStream);
-    //             webcamVideoRef.current.srcObject = null
-    //         }
-    //         else {
-    //             let stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
-    //             let track = stream.getVideoTracks()[0].clone();
-    //             stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
-    //             track.onended = toggleScreenShare;
-    //             setNewTrack(peerConnection, localStream, track)
-
-    //             webcamVideoRef.current.srcObject = localStream
-    //         }
-
-    //         isLocalScreenSharingFlag = !isLocalScreenSharingFlag
-    //         socket.emit(isLocalScreenSharingFlag ? IOEvents.SCREEN_SHARING_ENABLED : IOEvents.SCREEN_SHARING_DISABLED)
-    //         setLocalScreenSharing(isLocalScreenSharingFlag)
-
-    //     } catch (error) {
-    //         console.log("Screen Toggle Safari Error", error)
-    //     }
-    // }
 
     return (
         <>
