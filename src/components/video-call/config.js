@@ -2,19 +2,15 @@
 
 export const servers = {
     iceServers: [
-        {
-            urls: [
-                "stun:stun1.l.google.com:19302",
-                "stun:stun2.l.google.com:19302",
-                "stun:stun3.l.google.com:19302",
-                "stun:stun4.l.google.com:19302",
-                "stun:stun.services.mozilla.com",
-                "stun:stunserver.org",
-            ],
-        },
+      {
+        urls: [
+          'stun:stun.l.google.com:19302',
+          'stun:global.stun.twilio.com:3478'
+        ]
+      }
     ],
-    iceCandidatePoolSize: 10,
-};
+    sdpSemantics: 'unified-plan'
+  };
 
 export const IOConfig = {
     // "transports": ["websocket", "flashsocket", "pooling"],

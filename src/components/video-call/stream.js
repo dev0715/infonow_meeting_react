@@ -201,13 +201,15 @@ export async function isAudioAvailable() {
  */
 export function closeStreamsAndResetVideo(peerConnection, stream, videoRef, descriptor = "remote") {
     try {
-
+        
         console.log(`Closing '${descriptor}' stream and reseting relevant Stream Element`);
         if (stream) {
             removeAllVideoTracks(peerConnection, stream)
             removeAllAudioTracks(peerConnection, stream)
             videoRef.current.srcObject = null
         }
+        peerConnection.close();
+        peerConnection = null;
     } catch (error) {
         console.warn(`Closing '${descriptor}' stream Failed: `, error)
     }
