@@ -9,7 +9,6 @@ import { IOEvents } from "./events"
 import { servers, IOConfig, Browsers, ScreenSharingConfig } from './config';
 import { useParams } from 'react-router';
 import { getWhiteboardUrl, URLs } from './urls';
-import Peer, { SimplePeer } from 'simple-peer';
 import {
     getAudioMediaDevices,
     getVideoMediaDevices,
@@ -51,7 +50,7 @@ const icTimes = require('../../images/times.svg').default;
 
 
 // Global State
-/**@type {SimplePeer} */
+/**@type {RTCPeerConnection} */
 let peerConnection = null;
 
 /**@type {MediaStream} */
@@ -139,14 +138,14 @@ export const VideoCall = () => {
                 setUser(res.data);
                 initLocalStream();
                 if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 1000);
-                setCallStarted(isCallStarted => {
-                    if (isCallStarted) {
-                        console.log("RECONNECTING");
-                        socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
-                        setTimeout(() => createOffer(false), 1000);
-                    }
-                    return isCallStarted;
-                })
+                // setCallStarted(isCallStarted => {
+                //     if (isCallStarted) {
+                //         console.log("RECONNECTING");
+                //         socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
+                //         setTimeout(() => createOffer(false), 1000);
+                //     }
+                //     return isCallStarted;
+                // })
             }
             else {
                 setAuthorized(false)
@@ -155,44 +154,35 @@ export const VideoCall = () => {
             }
         });
 
-        socket.on(IOEvents.RECONNECTING, async (res) => {
-            if (res.success) {
-                toast("Reconnected")
-                peerConnection = null
-                initPeerConnection()
-                await createOffer(true)
-            } else {
-                endVideoCall()
-            }
-        })
+        // socket.on(IOEvents.RECONNECTING, async (res) => {
+        //     if (res.success) {
+        //         toast("Reconnected")
+        //         if (peerConnection) {
+        //             peerConnection.restartIce();
+        //             createOffer(true)
+        //         }
+        //     } else {
+        //         endVideoCall()
+        //     }
+        // })
 
         socket.on(IOEvents.NEW_OFFER, async (res) => {
             console.log(IOEvents.NEW_OFFER, res);
             if (res.data) {
-
-                if (res.newConnection) {
-                    console.log("Creating new PeerConnection")
-                    if (peerConnection) peerConnection = null;
-                    initPeerConnection()
+                try {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                    const answerDescription = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answerDescription);
+                    // -------------------------------------- //
+                    // --------------SEND ANSWER------------- //
+                    // -------------------------------------- //
+                    socket.emit(IOEvents.NEW_ANSWER, {
+                        newConnection: res.newConnection || false,
+                        data: answerDescription
+                    });
+                } catch (error) {
+                    console.log("CREATE_ANSWER_ERROR", error)
                 }
-                setTimeout(async () => {
-                    try {
-                        await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-                        const answerDescription = await peerConnection.createAnswer();
-                        await peerConnection.setLocalDescription(answerDescription);
-                        // -------------------------------------- //
-                        // --------------SEND ANSWER------------- //
-                        // -------------------------------------- //
-                        socket.emit(IOEvents.NEW_ANSWER, {
-                            newConnection: res.newConnection || false,
-                            data: answerDescription
-                        });
-                    } catch (error) {
-                        console.log("CREATE_ANSWER_ERROR", error)
-                    }
-
-                }, 1500);
-
             }
         });
 
@@ -214,26 +204,13 @@ export const VideoCall = () => {
         socket.on(IOEvents.ROOM_NOT_FOUND, res => endCallCallback(IOEvents.ROOM_NOT_FOUND, res));
 
         socket.on(IOEvents.CREATE_ROOM, () => {
-            console.log(IOEvents.CREATE_ROOM)
-            if (isFirstAttempt) {
-                setFirstAttempt(false)
-                peerConnection = null
-                setTimeout(() => {
-                    startVideoCall()
-                }, 200);
-            } else {
-                toast("Failed to connect to peer, try again")
-                endVideoCall()
-            }
+            startVideoCall()
         })
 
         socket.on(IOEvents.ROOM_EXIST, function () {
-            console.log(IOEvents.ROOM_EXIST)
-            peerConnection = null
-            setTimeout(() => {
-                initPeerConnection()
-                joinRoom()
-            }, 200);
+            socket.emit(IOEvents.ROOM_JOIN, {
+                meetingId: meetingId,
+            })
         });
 
         socket.on(IOEvents.CREATE_ICE_EVENT_DATA, (res) => {
@@ -369,9 +346,8 @@ export const VideoCall = () => {
 
     async function createOffer(newConnection = false) {
         try {
-            if (peerConnection) {
-                if (newConnection) initPeerConnection();
-                setTimeout(async () => {
+            setTimeout(async () => {
+                if (peerConnection) {
                     try {
                         const offerDescription = await peerConnection.createOffer();
                         await peerConnection.setLocalDescription(offerDescription);
@@ -383,9 +359,8 @@ export const VideoCall = () => {
                     } catch (error) {
                         console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR_INNER", error)
                     }
-
-                }, 1500);
-            }
+                }
+            }, newConnection ? 1500 : 0);
         } catch (error) {
             console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR", error)
         }
@@ -402,12 +377,18 @@ export const VideoCall = () => {
 
     function initPeerConnection() {
         try {
-
             // Global State
             peerConnection = new RTCPeerConnection(servers);
             remoteStream = new MediaStream();
 
-            setupIceEventBeforeStartCall()
+            candidates = [];
+
+            peerConnection.addEventListener('icecandidate', event => {
+                if (event.candidate) {
+                    candidates.push(event.candidate)
+                }
+            });
+
             // Push tracks from local stream to peer connection
             localStream.getTracks().forEach((track) => {
                 peerConnection.addTrack(track, localStream);
@@ -431,48 +412,32 @@ export const VideoCall = () => {
     }
 
     function setupIceEventOnStartCall() {
-
-        // console.log("SETUP_ICE_EVENT_ON_START_CALL");
-
         candidates.forEach(c => {
-            // console.log("ICE_ARRAY_EVENT")
             socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
                 data: c
             });
         });
 
-        peerConnection.onicecandidate = (event) => {
+        peerConnection.addEventListener('icecandidate', event => {
             if (event.candidate) {
-                // console.log("LOCAL_ICE_EVENT",)
                 socket.emit(IOEvents.CREATE_ICE_EVENT_DATA, {
-                    data: event.candidate.toJSON()
+                    data: event.candidate
                 });
             }
-        };
+        });
 
-        peerConnection.oniceconnectionstatechange = async function () {
-            // "checking" | "closed" | "completed" | "connected" | "disconnected" | "failed" | "new";
-            console.log(`PeerConnection status: ${peerConnection.iceConnectionState}`)
+        peerConnection.addEventListener("iceconnectionstatechange", event => {
 
-            if (peerConnection) setIsReconnecting(!(peerConnection.iceConnectionState == 'connected' || peerConnection.iceConnectionState == 'completed'));
-            if (peerConnection.iceConnectionState === "disconnected") {
+            const state = peerConnection.iceConnectionState;
+            console.log(`PeerConnection status: ${state}`);
+
+            if (peerConnection) setIsReconnecting(!(state == 'connected' || state == 'completed'));
+
+            if (state === "failed" || state == 'disconnected') {
+                peerConnection.restartIce();
                 createOffer(false);
             }
-
-        }
-
-    }
-
-    function setupIceEventBeforeStartCall() {
-        // console.log("SETUP_ICE_EVENT_BEFORE_START_CALL");
-        candidates = []
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                // console.log("ICE_EVENT_BEFORE_START_CALL")
-                candidates.push(event.candidate.toJSON())
-            }
-        };
-
+        });
     }
 
     function closeConnection() {
@@ -515,13 +480,6 @@ export const VideoCall = () => {
                 console.log("CREATE_ROOM_FUNCTION_ERROR", error)
             }
         }, 1000);
-    }
-
-    function joinRoom() {
-        let evtData = {
-            meetingId: meetingId,
-        }
-        setTimeout(() => socket.emit(IOEvents.ROOM_JOIN, evtData), 1000);
     }
 
     function sendInitialEvents() {
@@ -589,6 +547,7 @@ export const VideoCall = () => {
 
     async function toggleScreenShare() {
         try {
+
             stopWebcamStream()
 
             if (isLocalScreenSharingFlag) {
@@ -596,11 +555,13 @@ export const VideoCall = () => {
                 webcamVideoRef.current.srcObject = null
             }
             else {
-                let failed = await setNewVideoTrack(peerConnection, localStream, 'screen', null, toggleScreenShare)
-                if (failed) {
-                    webcamVideoRef.current.srcObject = isLocalVideoSharing ? localStream : null
-                    throw "Screen Share Cancelled. " + failed
-                }
+                let stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
+
+                let track = stream.getVideoTracks()[0].clone();
+                stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
+                track.onended = toggleScreenShare;
+                setNewTrack(peerConnection, localStream, track)
+
                 webcamVideoRef.current.srcObject = localStream
             }
 
@@ -609,7 +570,7 @@ export const VideoCall = () => {
             setLocalScreenSharing(isLocalScreenSharingFlag)
 
         } catch (error) {
-            console.log("Screen Toggle Error", error)
+            console.log("Screen Toggle Safari Error", error)
         }
     }
 
@@ -684,7 +645,6 @@ export const VideoCall = () => {
     }
 
     async function selectCameraDevice(deviceId) {
-        // console.log("SELECTED_CAMERA_DEVICE_ID", deviceId)
         setCameraDeviceId(deviceId)
         setIsVideoDeviceModelHidden(true)
         if (isLocalVideoSharing) {
@@ -780,33 +740,33 @@ export const VideoCall = () => {
         setRemoteAudioReading(0)
     }
 
-    async function toggleScreenShareWithSafari() {
-        console.log("Safari screen share")
-        try {
-            stopWebcamStream()
+    // async function toggleScreenShareWithSafari() {
+    //     console.log("Safari screen share")
+    //     try {
+    //         stopWebcamStream()
 
-            if (isLocalScreenSharingFlag) {
-                removeAllVideoTracks(peerConnection, localStream);
-                webcamVideoRef.current.srcObject = null
-            }
-            else {
-                let stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
-                let track = stream.getVideoTracks()[0].clone();
-                stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
-                track.onended = toggleScreenShare;
-                setNewTrack(peerConnection, localStream, track)
+    //         if (isLocalScreenSharingFlag) {
+    //             removeAllVideoTracks(peerConnection, localStream);
+    //             webcamVideoRef.current.srcObject = null
+    //         }
+    //         else {
+    //             let stream = await navigator.mediaDevices.getDisplayMedia(ScreenSharingConfig)
+    //             let track = stream.getVideoTracks()[0].clone();
+    //             stream.getTracks().forEach(t => { t.stop(); stream.removeTrack(t) });
+    //             track.onended = toggleScreenShare;
+    //             setNewTrack(peerConnection, localStream, track)
 
-                webcamVideoRef.current.srcObject = localStream
-            }
+    //             webcamVideoRef.current.srcObject = localStream
+    //         }
 
-            isLocalScreenSharingFlag = !isLocalScreenSharingFlag
-            socket.emit(isLocalScreenSharingFlag ? IOEvents.SCREEN_SHARING_ENABLED : IOEvents.SCREEN_SHARING_DISABLED)
-            setLocalScreenSharing(isLocalScreenSharingFlag)
+    //         isLocalScreenSharingFlag = !isLocalScreenSharingFlag
+    //         socket.emit(isLocalScreenSharingFlag ? IOEvents.SCREEN_SHARING_ENABLED : IOEvents.SCREEN_SHARING_DISABLED)
+    //         setLocalScreenSharing(isLocalScreenSharingFlag)
 
-        } catch (error) {
-            console.log("Screen Toggle Safari Error", error)
-        }
-    }
+    //     } catch (error) {
+    //         console.log("Screen Toggle Safari Error", error)
+    //     }
+    // }
 
     return (
         <>
@@ -954,7 +914,7 @@ export const VideoCall = () => {
                                         <CallControl
                                             className='screen-share-btn'
                                             visible={true}
-                                            onClick={browser === Browsers.Safari ? toggleScreenShareWithSafari : toggleScreenShare}
+                                            onClick={toggleScreenShare}
                                             icon={isLocalScreenSharing ? icScreenSharingSlash : icScreenSharing}
                                         />
 
