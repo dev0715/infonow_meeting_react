@@ -752,7 +752,7 @@ export const VideoCall = () => {
                 <div id="overlay"></div>
             }
 
-            <div style={{ display: !isReconnecting ? 'none' : 'unset' }} id="reconnection"><img alt="" src={icConnecting} /></div>
+            <div style={{ display: !isReconnecting ? 'none' : 'unset' }} id="reconnection"><img alt="" src={icConnecting} /><p>{peerConnection.iceConnectionState.toUpperCase()}</p></div>
 
             {
                 !isAuthorized &&
