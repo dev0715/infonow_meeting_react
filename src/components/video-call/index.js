@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 
 import SelectDevice from '../select-device';
-import io from "socket.io-client"
+import io, { Socket } from "socket.io-client"
 import './style.css';
 import { IOEvents } from "./events"
 import { servers, IOConfig, Browsers, ScreenSharingConfig } from './config';
@@ -62,6 +62,8 @@ let remoteStream = null;
 let isLocalScreenSharingFlag = false
 
 var candidates = [];
+
+/**@type {Socket} */
 let socket;
 let soundMeter;
 
@@ -349,9 +351,12 @@ export const VideoCall = () => {
 
     async function reconnectCall() {
         try {
-            if (isCallStarted && peerConnection) {
+            if (isCallStarted && peerConnection && socket.connected) {
                 peerConnection.restartIce();
-                createOffer();
+                createOffer(); 
+            }
+            else {
+                throw `Cannot reconnect | callStarted: ${isCallStarted} | live: ${socket.connected}`;
             }
         }
         catch (err) {
