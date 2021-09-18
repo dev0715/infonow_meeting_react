@@ -159,7 +159,6 @@ export const VideoCall = () => {
                     // --------------SEND ANSWER------------- //
                     // -------------------------------------- //
                     socket.emit(IOEvents.NEW_ANSWER, {
-                        newConnection: res.newConnection || false,
                         data: answerDescription
                     });
                 } catch (error) {
@@ -173,12 +172,16 @@ export const VideoCall = () => {
             if (res.data) {
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
             }
-            if (res.newConnection) {
-                console.log("Starting Call");
-                socket.emit(IOEvents.START_CALL);
-            }
+            socket.emit(IOEvents.START_CALL);
         });
 
+        socket.on(IOEvents.ANSWER, res => {
+            console.log(IOEvents.NEW_ANSWER, res);
+            if (res.data) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+            }
+        })
+        
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
         socket.on(IOEvents.INVALID_PARTICIPANT, res => endCallCallback(IOEvents.INVALID_PARTICIPANT, res));
         socket.on(IOEvents.MEETING_NOT_FOUND, res => endCallCallback(IOEvents.MEETING_NOT_FOUND, res));
@@ -328,42 +331,18 @@ export const VideoCall = () => {
 
     async function createOffer(newConnection = false) {
         try {
-            setTimeout(async () => {
-                if (peerConnection) {
-                    try {
-                        const offerDescription = await peerConnection.createOffer();
-                        await peerConnection.setLocalDescription(offerDescription);
-                        socket.emit(IOEvents.NEW_OFFER, {
-                            newConnection: newConnection,
-                            data: offerDescription
-                        });
-                        console.log("CREATING RE-NEGOTIATION OFFER");
-                    } catch (error) {
-                        console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR_INNER", error)
-                    }
-                }
-            }, newConnection ? 1500 : 0);
+            if (peerConnection) {
+                const offerDescription = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offerDescription);
+                socket.emit(IOEvents.NEW_OFFER, {
+                    data: offerDescription
+                });
+                console.log("CREATING RE-NEGOTIATION OFFER");
+            }
         } catch (error) {
             console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR", error)
         }
 
-    }
-
-    async function reconnectCall() {
-        try {
-            if (peerConnection && socket.connected) {
-                peerConnection.restartIce();
-                createOffer(); 
-            }
-            else {
-                throw `Cannot reconnect | live: ${socket.connected}`;
-            }
-        }
-        catch (err) {
-            console.log(err);
-            console.log("FAILED TO CONNECT CALL, RETRYING IN 3 SECONDS");
-            setTimeout(reconnectCall, 3000);
-        }
     }
 
     async function init() {
@@ -372,12 +351,6 @@ export const VideoCall = () => {
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
         window.addEventListener("beforeunload", endCallOnReload)
         initLocalStream()
-
-        window.addEventListener('online', async () => {
-            alert("Back Online");
-            reconnectCall();
-        });
-        window.addEventListener('offline', () => alert("Gone Offline"));
     }
 
     function initPeerConnection() {
@@ -752,7 +725,7 @@ export const VideoCall = () => {
                 <div id="overlay"></div>
             }
 
-            <div style={{ display: !isReconnecting ? 'none' : 'unset' }} id="reconnection"><img alt="" src={icConnecting} /><p>{peerConnection && peerConnection.iceConnectionState.toUpperCase()}</p></div>
+            <div style={{ display: !true ? 'none' : 'unset' }} id="reconnection"><img alt="" src={icConnecting} /></div>
 
             {
                 !isAuthorized &&
