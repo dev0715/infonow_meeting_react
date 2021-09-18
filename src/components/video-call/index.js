@@ -347,12 +347,32 @@ export const VideoCall = () => {
 
     }
 
+    async function reconnectCall() {
+        try {
+            if (isCallStarted && peerConnection) {
+                peerConnection.restartIce();
+                createOffer();
+            }
+        }
+        catch (err) {
+            console.log(err);
+            console.log("FAILED TO CONNECT CALL, RETRYING IN 3 SECONDS");
+            setTimeout(reconnectCall, 3000);
+        }
+    }
+
     async function init() {
         initSocket()
         updateDevices()
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
         window.addEventListener("beforeunload", endCallOnReload)
         initLocalStream()
+
+        window.addEventListener('online', async () => {
+            alert("Back Online");
+            reconnectCall();
+        });
+        window.addEventListener('offline', () => alert("Gone Offline"));
     }
 
     function initPeerConnection() {
