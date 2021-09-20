@@ -4,7 +4,7 @@ export const URLs = {
     // feedback: 'http://192.168.10.101:3600/meetings/feedback',
     // whiteBoard: "https://whiteboard.meditati.ro/boards",
     main: 'https://meet.meditati.ro/',
-    rootApi: 'https://api.meditati.ro',
+    rootApi: 'https://api.meditati.ro/main',
     feedback: 'https://meet.meditati.ro/api/meetings/feedback',
     whiteBoard: "https://whiteboard.meditati.ro/boards"
 }
