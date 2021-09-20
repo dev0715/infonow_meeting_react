@@ -139,6 +139,7 @@ export const VideoCall = () => {
                 setAuthorized(true)
                 setUser(res.data);
                 initLocalStream();
+                if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 3000);
                 setCallStarted(isCallStarted => {
                     if (isCallStarted) {
                         console.log("RECONNECTING");
@@ -344,7 +345,6 @@ export const VideoCall = () => {
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
         window.addEventListener("beforeunload", endCallOnReload)
         initLocalStream()
-        if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 1000);
     }
 
     function initPeerConnection() {
@@ -475,7 +475,7 @@ export const VideoCall = () => {
             setLocalAudioSharing(isLocalAudioSharing => !isLocalAudioSharing)
         } catch (error) {
             console.log(error)
-            toast("MicroPhone is not enabled")
+            toast("Microphone is not enabled")
         }
     }
 
