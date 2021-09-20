@@ -139,7 +139,14 @@ export const VideoCall = () => {
                 setAuthorized(true)
                 setUser(res.data);
                 initLocalStream();
-                if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 1000);
+                setCallStarted(isCallStarted => {
+                    if (isCallStarted) {
+                        console.log("RECONNECTING");
+                        socket.emit(IOEvents.RECONNECTING, { meetingId: meetingId })
+                        setTimeout(() => createOffer(false), 1000);
+                    }
+                    return isCallStarted;
+                })
             }
             else {
                 setAuthorized(false)
@@ -148,46 +155,27 @@ export const VideoCall = () => {
             }
         });
 
-        socket.on(IOEvents.NEW_OFFER, async (res) => {
-            console.log(IOEvents.NEW_OFFER, res);
-            if (res.data) {
-                try {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-                    const answerDescription = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answerDescription);
-                    // -------------------------------------- //
-                    // --------------SEND ANSWER------------- //
-                    // -------------------------------------- //
-                    socket.emit(IOEvents.NEW_ANSWER, {
-                        data: answerDescription
-                    });
-                } catch (error) {
-                    console.log("CREATE_ANSWER_ERROR", error)
-                }
-            }
-        });
-
-        socket.on(IOEvents.NEW_ANSWER, res => {
-            console.log(IOEvents.NEW_ANSWER, res);
-            if (res.data) {
-                peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-            }
-            socket.emit(IOEvents.START_CALL);
-        });
-
-        socket.on(IOEvents.ANSWER, res => {
-            console.log(IOEvents.NEW_ANSWER, res);
-            if (res.data) {
-                peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
-            }
-        })
-
-        socket.on(IOEvents.OFFER, res => {
+        socket.on(IOEvents.OFFER, async (res) => {
             console.log(IOEvents.OFFER, res);
-            if (res.data) {
-                peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+            if (peerConnection && res.data) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                const answerDescription = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answerDescription);
+                // -------------------------------------- //
+                // --------------SEND ANSWER------------- //
+                // -------------------------------------- //
+                socket.emit(IOEvents.ANSWER, {
+                    data: answerDescription
+                });
             }
         })
+
+        socket.on(IOEvents.ANSWER, async (res) => {
+            console.log(IOEvents.ANSWER, res);
+            if (res.data && peerConnection) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+            }
+        });
 
         socket.on(IOEvents.ALREADY_JOINED, res => endCallCallback(IOEvents.ALREADY_JOINED, res));
         socket.on(IOEvents.INVALID_PARTICIPANT, res => endCallCallback(IOEvents.INVALID_PARTICIPANT, res));
@@ -333,18 +321,16 @@ export const VideoCall = () => {
         console.log("Page Reloading")
         socket.emit(IOEvents.END_CALL)
         window.removeEventListener("beforeunload", endCallOnReload);
-
     }
 
-    async function createOffer(newConnection = false) {
-        try {
+    async function createOffer(newConnection = true) {
+        try {     
             if (peerConnection) {
-                const offerDescription = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offerDescription);
-                socket.emit(IOEvents.NEW_OFFER, {
-                    data: offerDescription
-                });
-                console.log("CREATING RE-NEGOTIATION OFFER");
+                console.log(`CREATING OFFER | newConnection: ${newConnection}`);
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                console.log(`EMITTING: ${IOEvents.OFFER}`)
+                socket.emit(IOEvents.OFFER, { data: offer });
             }
         } catch (error) {
             console.log("CREATING_RE-NEGOTIATION_OFFER_ERROR", error)
@@ -358,6 +344,7 @@ export const VideoCall = () => {
         navigator.mediaDevices.addEventListener('devicechange', updateDevices)
         window.addEventListener("beforeunload", endCallOnReload)
         initLocalStream()
+        if (!isLocalAudioSharing) setTimeout(toggleMicrophone, 1000);
     }
 
     function initPeerConnection() {
@@ -801,6 +788,7 @@ export const VideoCall = () => {
                                                 >
                                                 </div>
                                                 <div className="remoteUserName">
+                                                    <img src={`${URLs.rootApi}/public${remoteUser.profilePicture}`} />
                                                     <p>
                                                         {getNameInitials(remoteUser.name)}
                                                     </p>
@@ -826,7 +814,8 @@ export const VideoCall = () => {
                                 style={{ display: isCallStarted ? "none" : "initial" }}
                             >
                                 <div>
-                                    <p>{getNameInitials(user.name)}</p>
+                                    <img src={`${URLs.rootApi}/public${user.profilePicture}`} />
+                                    <p>{user.name}</p>
                                 </div>
                             </div>
                             <div className="c-col-12 main-call-controls">
