@@ -234,6 +234,7 @@ export const VideoCall = () => {
                 }
             } catch (error) {
                 console.log("ROOM_JOIN_ERROR", error)
+                createOffer();
             }
         });
 
@@ -800,9 +801,6 @@ export const VideoCall = () => {
                                                 </div>
                                                 <div className="remoteUserName">
                                                     <img src={`${URLs.rootApi}/public${remoteUser.profilePicture}`} />
-                                                    <p>
-                                                        {getNameInitials(remoteUser.name)}
-                                                    </p>
                                                 </div>
                                             </>
                                         }

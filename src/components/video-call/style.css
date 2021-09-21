@@ -782,7 +782,7 @@ body {
 	}
 
 	#indicator-container.active {
-		top: 40%;
+		top: 30%;
 		opacity: 1;
 		transform: scale(1.5);
 		left: calc(50% - 50px);
