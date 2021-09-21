@@ -325,7 +325,7 @@ export const VideoCall = () => {
     }
 
     async function createOffer(newConnection = true) {
-        try {     
+        try {
             if (peerConnection) {
                 console.log(`CREATING OFFER | newConnection: ${newConnection}`);
                 const offer = await peerConnection.createOffer();
@@ -689,18 +689,29 @@ export const VideoCall = () => {
 
     function startSoundMeter() {
         console.log("starting sound meter");
-        setCallStarted(isCallStarted => {
-            if (isCallStarted) {
-                if (remoteStream.getAudioTracks().length > 0) {
-                    soundMeter = new SoundMeter(
-                        new AudioContext(),
-                        instant => setRemoteAudioReading(instant)
-                    );
-                    soundMeter.connectToSource(remoteStream);
+        var AudioContext = window.AudioContext // Default
+            || window.webkitAudioContext // Safari and old versions of Chrome
+            || false;
+
+        if (AudioContext) {
+            let ctx = new AudioContext;
+            setCallStarted(isCallStarted => {
+                if (isCallStarted) {
+                    if (remoteStream.getAudioTracks().length > 0) {
+                        soundMeter = new SoundMeter(
+                            ctx,
+                            instant => setRemoteAudioReading(instant)
+                        );
+                        soundMeter.connectToSource(remoteStream);
+                    }
                 }
-            }
-            return isCallStarted;
-        })
+                return isCallStarted;
+            })
+        } else {
+            console.warning("AudioContext is not supported. Sound bubble will not work")
+        }
+
+
 
     }
 

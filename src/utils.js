@@ -25,10 +25,11 @@ export function detectAudioLevelOfRemoteStream(audioLevels, stream) {
     || window.webkitAudioContext // Safari and old versions of Chrome
     || false; 
 
-if (AudioContext) {
+    if (AudioContext) {
+        let ctx = new AudioContext;
     if (stream) {
         if (stream.getAudioTracks().length > 0) {
-            var audioContext = new AudioContext();
+            var audioContext = ctx;
             var microphone = audioContext.createMediaStreamSource(stream);
             var javascriptNode = audioContext.createScriptProcessor(1024, 1, 1);
 
