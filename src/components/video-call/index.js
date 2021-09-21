@@ -177,6 +177,9 @@ export const VideoCall = () => {
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
                 setCallStarted(isCallStarted => {
                     if (!isCallStarted) {
+                        if (res.user) {
+                            setRemoteUser(res.user)
+                        }
                         socket.emit(IOEvents.START_CALL);
                     }
                     return isCallStarted;
