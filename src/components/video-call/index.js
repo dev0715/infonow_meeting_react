@@ -175,6 +175,13 @@ export const VideoCall = () => {
             console.log(IOEvents.ANSWER, res);
             if (res.data && peerConnection) {
                 peerConnection.setRemoteDescription(new RTCSessionDescription(res.data));
+                setCallStarted(isCallStarted => {
+                    if (!isCallStarted) {
+                        socket.emit(IOEvents.START_CALL);
+                    }
+                    return isCallStarted;
+                })
+                
             }
         });
 
