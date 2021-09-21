@@ -21,8 +21,11 @@ export function getNameInitials(name) {
  */
 export function detectAudioLevelOfRemoteStream(audioLevels, stream) {
 
+    var AudioContext = window.AudioContext // Default
+    || window.webkitAudioContext // Safari and old versions of Chrome
+    || false; 
 
-
+if (AudioContext) {
     if (stream) {
         if (stream.getAudioTracks().length > 0) {
             var audioContext = new AudioContext();
@@ -48,6 +51,11 @@ export function detectAudioLevelOfRemoteStream(audioLevels, stream) {
             })
         }
     }
+} else {
+    console.warning("AudioContext is not supported. Sound bubble will not work")
+}
+
+    
 }
 
 export function audioScale(remoteAudioReading) {
