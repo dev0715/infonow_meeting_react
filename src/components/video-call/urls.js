@@ -9,5 +9,5 @@ export const URLs = {
     whiteBoard: "https://whiteboard.infonow.ro/boards"
 }
 
-export const getWhiteboardUrl = (meetingId, userId) => `${URLs.whiteBoard}/${meetingId}`;
+export const getWhiteboardUrl = (meetingId, userId) => `${URLs.whiteBoard}/${meetingId}?lang=ro`;
 
