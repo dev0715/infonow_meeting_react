@@ -755,7 +755,7 @@ export const VideoCall = () => {
                     <div className="c-col-12" id="videos" >
                         <span
                             style={{
-                                display: isLocalVideoSharing && isLocalScreenSharing && !isLocalVideoHidden ? "initial" : "none",
+                                display: isLocalScreenSharingFlag && isLocalVideoSharing && isLocalScreenSharing && !isLocalVideoHidden ? "initial" : "none",
                             }}
                         >
                             <VideoContainer
