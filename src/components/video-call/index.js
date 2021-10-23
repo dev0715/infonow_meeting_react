@@ -778,10 +778,10 @@ export const VideoCall = () => {
                                 isActive={isVideoInNormalState()} />
                         </span>
                         {
-                            isLocalScreenSharing &&
-                            <div className="local-screen-sharing">
-                                <img alt="" src={icScreenSharing}></img>
-                            </div>
+                            // isLocalScreenSharing &&
+                            // <div className="local-screen-sharing">
+                            //     <img alt="" src={icScreenSharing}></img>
+                            // </div>
                         }
 
                         <Whiteboard
