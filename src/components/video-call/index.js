@@ -755,7 +755,7 @@ export const VideoCall = () => {
                     <div className="c-col-12" id="videos" >
                         <span
                             style={{
-                                display: isLocalScreenSharingFlag && isLocalVideoSharing && isLocalScreenSharing && !isLocalVideoHidden ? "initial" : "none",
+                                display:  (isLocalVideoSharing || isLocalScreenSharing) && !isLocalVideoHidden ? "initial" : "none",
                             }}
                         >
                             <VideoContainer
@@ -777,12 +777,6 @@ export const VideoCall = () => {
                                 isMuted={false}
                                 isActive={isVideoInNormalState()} />
                         </span>
-                        {/* {
-                            isLocalScreenSharing &&
-                            <div className="local-screen-sharing">
-                                <img alt="" src={icScreenSharing}></img>
-                            </div>
-                        } */}
 
                         <Whiteboard
                             visible={isLocalBoardOpen}
