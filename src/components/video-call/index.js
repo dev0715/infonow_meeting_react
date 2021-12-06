@@ -21,7 +21,7 @@ import {
     closeStreamsAndResetVideo,
     setNewTrack
 } from './stream';
-import { audioScale, getNameInitials, playSound, stopSound, toast } from '../../utils';
+import { audioScale, getNameInitials, playSound, stopSound, toast, getFirstName } from '../../utils';
 import { SoundMeter } from './sound-meter'
 import ApplicationSounds from '../application-sounds';
 import Indicator from '../indicator';
@@ -805,7 +805,7 @@ export const VideoCall = () => {
                                                 >
                                                 </div>
                                                 <div className="remoteUserName">
-                                                    <img src={`${URLs.rootApi}/public${remoteUser.profilePicture}`} />
+                                                    <img src={`${URLs.rootApi}/public${remoteUser.profilePicture ?? '/profile-pictures/default.png'}`} />
                                                 </div>
                                             </>
                                         }
@@ -828,8 +828,8 @@ export const VideoCall = () => {
                                 style={{ display: isCallStarted ? "none" : "initial" }}
                             >
                                 <div>
-                                    <img src={`${URLs.rootApi}/public${user.profilePicture}`} />
-                                    <p>{user.name}</p>
+                                    <img src={`${URLs.rootApi}/public${user.profilePicture?? '/profile-pictures/default.png'}`} />
+                                    <p>{getFirstName(user.name)}</p>
                                 </div>
                             </div>
                             <div className="c-col-12 main-call-controls">
